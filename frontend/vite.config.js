@@ -12,6 +12,10 @@ export default defineConfig(({ command }) => {
   return {
     base,
     plugins: [react()],
+    build: {
+      outDir: '../docs',
+      emptyOutDir: true,
+    },
     server: {
       port: 3000,
       proxy: {
