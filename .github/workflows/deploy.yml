@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -37,9 +38,17 @@ jobs:
           npm ci
 
       - name: Build frontend static files
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cd frontend
           npm run build
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend/dist
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -49,6 +58,6 @@ jobs:
         with:
           path: frontend/dist
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages Action
         id: deployment
         uses: actions/deploy-pages@v4
