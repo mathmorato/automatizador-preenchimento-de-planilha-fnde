@@ -1,0 +1,32 @@
+# Node.js
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/dist/
+
+# Python / Virtual Environments
+venv/
+backend/venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database & Secrets
+*.db
+backend/app/submodules/auth/users.db
+.env
+backend/.env
+frontend/.env
+credentials/
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

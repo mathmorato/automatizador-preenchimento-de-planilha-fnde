@@ -2,7 +2,6 @@ import json
 import base64
 from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from .db import authenticate_user, register_user
 
 security = HTTPBearer()
 

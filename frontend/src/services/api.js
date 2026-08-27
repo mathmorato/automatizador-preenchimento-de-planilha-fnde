@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (
+  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? '/api'
+    : 'https://automatizador-fnde-api.onrender.com/api'
+);
 
 export async function registerUser({ name, email, password }) {
   const response = await axios.post(`${API_BASE}/auth/register`, {

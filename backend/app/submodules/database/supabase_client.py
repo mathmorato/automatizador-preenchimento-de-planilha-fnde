@@ -1,7 +1,6 @@
 import os
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
-from ...config import settings
 from ..schemas.attendance_schema import AttendanceRecord
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://bldooffwqjsjoxqkuivr.supabase.co")

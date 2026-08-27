@@ -20,7 +20,12 @@ from .submodules.auth.db import (
 from .submodules.auth.email_service import send_password_reset_email
 from .submodules.auth.google_auth import verify_google_token, create_user_token
 from .submodules.schemas.attendance_schema import AttendanceRecord, ParseResponse
-from .submodules.ai_parser.gemini_client import parse_attendance_from_content, regenerate_field_content
+from .submodules.ai_parser.gemini_client import (
+    parse_attendance_from_content,
+    regenerate_field_content,
+    extract_all_person_names,
+    extract_all_dates_from_chat
+)
 from .submodules.ai_parser.zip_extractor import process_whatsapp_zip
 from .submodules.ai_parser.training_lookup import get_all_training_participants_for_municipio
 from .submodules.sheets_service.google_sheets_client import (
@@ -147,8 +152,6 @@ def auth_verify(user: dict = Depends(verify_google_token)):
         "authenticated": True,
         "user": user
     }
-
-from .submodules.ai_parser.gemini_client import parse_attendance_from_content, regenerate_field_content, extract_all_person_names, extract_all_dates_from_chat
 
 @app.post("/api/parse", response_model=ParseResponse)
 async def parse_attendance(

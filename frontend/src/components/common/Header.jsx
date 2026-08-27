@@ -10,7 +10,7 @@ export default function Header({ user, onLogout }) {
     <header className="top-nav">
       <div className="nav-container">
         <a href="/" className="brand-section">
-          <img src="/logo-cecate.png" alt="Logo CECATE UFG FNDE" className="brand-logo" />
+          <img src="./logo-cecate.png" alt="Logo CECATE UFG FNDE" className="brand-logo" />
         </a>
 
         {user && (
