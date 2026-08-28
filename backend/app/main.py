@@ -24,8 +24,10 @@ from .submodules.ai_parser.gemini_client import (
     parse_attendance_from_content,
     regenerate_field_content,
     extract_all_person_names,
+    extract_all_person_names_with_gemini,
     extract_all_dates_from_chat
 )
+
 from .submodules.ai_parser.zip_extractor import process_whatsapp_zip
 from .submodules.ai_parser.training_lookup import get_all_training_participants_for_municipio
 from .submodules.sheets_service.google_sheets_client import (
@@ -227,7 +229,8 @@ def regenerate_field(req: RegenerateFieldRequest, user: dict = Depends(verify_go
             user_instruction=req.user_instruction or "",
             assunto=req.assunto or "SETE"
         )
-        extracted_names = extract_all_person_names(req.raw_chat_text or "", "Matheus Morato")
+        extracted_names = extract_all_person_names_with_gemini(req.raw_chat_text or "")
+
         extracted_dates = extract_all_dates_from_chat(req.raw_chat_text or "")
         
         blacklisted = ["cargo que ocupa", "cargo que", "cargo", "tipo de vínculo", "cacs", "gestor municipal", "nome completo"]

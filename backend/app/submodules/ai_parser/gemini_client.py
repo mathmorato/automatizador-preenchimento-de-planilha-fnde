@@ -155,6 +155,60 @@ def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
     return unique
 
 
+def extract_all_person_names_with_gemini(raw_chat_text: str) -> List[str]:
+    """
+    Usa a API do Google Gemini para reler a conversa e extrair a lista exata de nomes de pessoas atendidas.
+    """
+    if not raw_chat_text or len(raw_chat_text.strip()) < 5:
+        return []
+
+    if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip() != "":
+        prompt = f"""Você é uma Inteligência Artificial especialista em extração de nomes de pessoas físicas em atendimentos do FNDE / CECATE CO.
+Sua missão é RELER A CONVERSA COMPLETA DO ATENDIMENTO abaixo e listar TODOS OS NOMES REAIS DE PESSOAS ATENDIDAS (gestores, secretários, contatos municipais).
+
+--- CONVERSA DO ATENDIMENTO ---
+{raw_chat_text[:8000]}
+--- FIM DA CONVERSA ---
+
+REGRAS OBRIGATÓRIAS:
+1. Releia atentamente a conversa. Procure por nomes em saudações, apresentações ("Sou a Maria", "Me chamo Neide") e respostas a questionários ("Nome completo: Lany da Silva Baron").
+2. NUNCA inclua rótulos de campos ou textos de formulário (ex: "Cargo Que Ocupa", "Tipo de Vínculo", "Nome Completo", "Gestor Municipal", "CACs", "Município que representa").
+3. NUNCA inclua nomes de técnicos do CECATE (ex: Matheus Morato, Willer, Lara, Marcos, Kariny, Dheovanna).
+4. NUNCA inclua nomes de cidades ou estados (ex: Santo Antônio de Posse, São Paulo, Goiás).
+5. Retorne EXCLUSIVAMENTE um array JSON contendo apenas os nomes encontrados. Exemplo: ["Lany da Silva Baron"]. Se nenhum nome próprio de pessoa for encontrado, retorne [].
+
+Retorne apenas o JSON:"""
+
+        models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+        try:
+            from google import genai
+            client = genai.Client(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                    )
+                    if response and response.text:
+                        raw = response.text.strip()
+                        if raw.startswith("```"):
+                            raw = re.sub(r'^```(?:json)?\s*', '', raw)
+                            raw = re.sub(r'\s*```$', '', raw)
+                        import json
+                        arr = json.loads(raw.strip())
+                        if isinstance(arr, list):
+                            clean = [str(n).strip().title() for n in arr if str(n).strip() and not any(bl in str(n).lower() for bl in BLACK_LIST_NAMES)]
+                            if clean:
+                                return clean
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    return extract_all_person_names(raw_chat_text)
+
+
+
 def extract_all_dates_from_chat(text: str) -> List[str]:
     """
     Extrai TODAS as datas mencionadas no texto do atendimento/chat do WhatsApp.
