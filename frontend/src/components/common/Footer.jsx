@@ -1,7 +1,7 @@
 import React from 'react';
 import logoCecate from '../../assets/logo-cecate.png';
 
-export const APP_VERSION = "v1.1.4";
+export const APP_VERSION = "v1.1.5";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

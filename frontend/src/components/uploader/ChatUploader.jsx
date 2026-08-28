@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Image as ImageIcon, Sparkles, UserCheck, MessageSquareText, FolderArchive } from 'lucide-react';
+import { Upload, FileText, Image as ImageIcon, UserCheck, MessageSquareText, FolderArchive } from 'lucide-react';
 
 export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess, onError }) {
   const [files, setFiles] = useState([]);
@@ -55,7 +55,7 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
     try {
       await onParseSuccess({ files, textContent: customText, tecnicoName });
     } catch (err) {
-      if (onError) onError(err.message || 'Erro ao processar conversa com a IA.');
+      if (onError) onError(err.message || 'Erro ao processar conversa.');
     } finally {
       setLoading(false);
     }
@@ -64,10 +64,10 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
   return (
     <div className="panel-card">
       <div className="panel-title">
-        <Sparkles color="#F3A712" size={22} /> Envio de Conversa ou Capturas de Tela (WhatsApp)
+        <FileText color="#0066B3" size={22} /> Envio de Conversa ou Capturas de Tela (WhatsApp)
       </div>
       <p className="panel-subtitle">
-        Envie os prints do atendimento ou o arquivo exportado (.zip / .txt) do WhatsApp para a Inteligência Artificial extrair os dados com OCR (Português/Inglês).
+        Envie os prints do atendimento ou o arquivo exportado (.zip / .txt) do WhatsApp para extração dos dados com OCR (Português/Inglês).
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -124,7 +124,7 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
             </button>
           </div>
 
-          {/* INPUT PARA ZIP/DOCUMENTOS (Compatível com Android e iOS) */}
+          {/* INPUT PARA ZIP/DOCUMENTOS */}
           <input
             ref={fileInputZipRef}
             type="file"
@@ -180,11 +180,11 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? (
               <>
-                <div className="spinner"></div> Processando com IA &amp; OCR (PT/EN)...
+                <div className="spinner"></div> Processando Leitura e OCR (PT/EN)...
               </>
             ) : (
               <>
-                <Sparkles size={18} /> Processar com Inteligência Artificial
+                <FileText size={18} /> Processar e Extrair Atendimento
               </>
             )}
           </button>

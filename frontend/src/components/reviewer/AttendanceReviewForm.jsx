@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Sparkles, Wand2, BrainCircuit, RefreshCw as RotateCw, Edit3, Search, Check, Zap, UserCheck } from 'lucide-react';
+import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw } from 'lucide-react';
 import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants } from '../../services/api';
 
 const ESTADOS_BRASIL = [
@@ -387,7 +387,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         <CheckCircle color="#10B981" size={24} /> Conferência Prévia do Atendimento
       </div>
       <p className="panel-subtitle">
-        Confira as informações extraídas, utilize a IA para reler a conversa e confirme a gravação na planilha.
+        Confira as informações extraídas da conversa e confirme a gravação na planilha FNDE.
       </p>
 
       {formError && (
@@ -548,7 +548,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                     <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
                   ) : (
                     <>
-                      <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Regenerar
+                      <RotateCw size={13} color="#0066B3" /> Reler Conversa
                     </>
                   )}
                 </button>
@@ -571,20 +571,20 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                   }}
                   onClick={() => setShowPromptResumo(!showPromptResumo)}
                 >
-                  <Wand2 size={13} color="#047857" />
-                  {showPromptResumo ? 'Fechar' : 'Dar Comando à IA'}
+                  <Edit3 size={13} color="#047857" />
+                  {showPromptResumo ? 'Fechar' : 'Instruir Refinamento'}
                 </button>
               </div>
             </div>
 
-            {/* Barra de Comando para a IA (Resumo) */}
+            {/* Barra de Comando para Refinamento (Resumo) */}
             {showPromptResumo && (
               <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ background: '#FFF', fontSize: '0.85rem' }}
-                  placeholder="Digite a instrução para a IA (ex: Deixar mais curto, focar na dúvida do SETE, formal...)"
+                  placeholder="Digite a instrução para ajustar o texto (ex: Deixar mais curto, focar na dúvida do SETE...)"
                   value={promptResumoText}
                   onChange={(e) => setPromptResumoText(e.target.value)}
                   onKeyDown={(e) => {
@@ -605,7 +605,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                     <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
                   ) : (
                     <>
-                      <Sparkles size={14} /> Aplicar Comando
+                      <RotateCw size={14} /> Aplicar Refinamento
                     </>
                   )}
                 </button>
@@ -939,7 +939,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                     <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
                   ) : (
                     <>
-                      <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Regenerar
+                      <RotateCw size={13} color="#0066B3" /> Reler Conversa
                     </>
                   )}
                 </button>
@@ -962,20 +962,20 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                   }}
                   onClick={() => setShowPromptObs(!showPromptObs)}
                 >
-                  <Wand2 size={13} color="#047857" />
-                  {showPromptObs ? 'Fechar' : 'Dar Comando à IA'}
+                  <Edit3 size={13} color="#047857" />
+                  {showPromptObs ? 'Fechar' : 'Instruir Refinamento'}
                 </button>
               </div>
             </div>
 
-            {/* Barra de Comando para a IA (Observações) */}
+            {/* Barra de Comando para Refinamento (Observações) */}
             {showPromptObs && (
               <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ background: '#FFF', fontSize: '0.85rem' }}
-                  placeholder="Digite a instrução para a IA (ex: Detalhar orientação, resumir tópicos, incluir pendência...)"
+                  placeholder="Digite a instrução para ajustar o texto (ex: Detalhar orientação, resumir tópicos, incluir pendência...)"
                   value={promptObsText}
                   onChange={(e) => setPromptObsText(e.target.value)}
                   onKeyDown={(e) => {
@@ -996,7 +996,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                     <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
                   ) : (
                     <>
-                      <Sparkles size={14} /> Aplicar Comando
+                      <RotateCw size={14} /> Aplicar Refinamento
                     </>
                   )}
                 </button>
