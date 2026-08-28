@@ -3,7 +3,35 @@ import JSZip from 'jszip';
 const TRAINING_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CAZBdzN_Wz_z-XM1vrhKTtCcE3PNuTSd8QW9b5cC3Pk/export?format=csv&gid=943666845";
 const LIVE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1lQyVlaZOyem8F7SaaeRSpgx1JOTQVRzg7XawseG3TgQ/export?format=csv&gid=1401168846";
 
-const ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+const MAPA_ESTADOS_POR_EXTENSO = {
+  "ACRE": "AC", "AC": "AC",
+  "ALAGOAS": "AL", "AL": "AL",
+  "AMAPA": "AP", "AMAPÁ": "AP", "AP": "AP",
+  "AMAZONAS": "AM", "AM": "AM",
+  "BAHIA": "BA", "BA": "BA",
+  "CEARA": "CE", "CEARÁ": "CE", "CE": "CE",
+  "DISTRITO FEDERAL": "DF", "BRASILIA": "DF", "BRASÍLIA": "DF", "DF": "DF",
+  "ESPIRITO SANTO": "ES", "ESPÍRITO SANTO": "ES", "ES": "ES",
+  "GOIAS": "GO", "GOIÁS": "GO", "GOIANIA": "GO", "GOIÂNIA": "GO", "GO": "GO",
+  "MARANHAO": "MA", "MARANHÃO": "MA", "MA": "MA",
+  "MATO GROSSO": "MT", "MT": "MT",
+  "MATO GROSSO DO SUL": "MS", "MS": "MS",
+  "MINAS GERAIS": "MG", "MINAS": "MG", "MG": "MG",
+  "PARA": "PA", "PARÁ": "PA", "PA": "PA",
+  "PARAIBA": "PB", "PARAÍBA": "PB", "PB": "PB",
+  "PARANA": "PR", "PARANÁ": "PR", "PR": "PR",
+  "PERNAMBUCO": "PE", "PE": "PE",
+  "PIAUI": "PI", "PIAUÍ": "PI", "PI": "PI",
+  "RIO DE JANEIRO": "RJ", "RJ": "RJ",
+  "RIO GRANDE DO NORTE": "RN", "RN": "RN",
+  "RIO GRANDE DO SUL": "RS", "RS": "RS",
+  "RONDONIA": "RO", "RONDÔNIA": "RO", "RO": "RO",
+  "RORAIMA": "RR", "RR": "RR",
+  "SANTA CATARINA": "SC", "SC": "SC",
+  "SAO PAULO": "SP", "SÃO PAULO": "SP", "SP": "SP",
+  "SERGIPE": "SE", "SE": "SE",
+  "TOCANTINS": "TO", "TO": "TO"
+};
 
 let cachedTrainingRecords = null;
 let cachedNextRow = 580;
@@ -219,15 +247,61 @@ export async function extractZipContent(file) {
   return { text };
 }
 
+export function extractLocationFromText(text) {
+  let uf = "GO";
+  let municipio = "Município Atendido";
+  if (!text) return { municipio, uf };
+
+  // 1. Procura por padrão Cidade / UF (ex: Acreúna - GO, Acreúna / Goiás, Cidade de Acreúna GO)
+  const estadosPattern = Object.keys(MAPA_ESTADOS_POR_EXTENSO).sort((a, b) => b.length - a.length).join('|');
+  const regexMuniUf = new RegExp(`(?:município|munícipio|cidade|prefeitura)?\\s*(?:de\\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)\\s*(?:\\/|-|,|\\s)\\s*\\b(${estadosPattern})\\b`, 'i');
+  
+  const match = text.match(regexMuniUf);
+  if (match) {
+    const rawMuni = match[1].trim();
+    const rawState = match[2].trim().toUpperCase();
+    const noise = ["município", "munícipio", "cidade", "prefeitura", "do", "da", "de", "sobre", "informe", "débitos"];
+    if (!noise.includes(rawMuni.toLowerCase())) {
+      municipio = toTitleCase(rawMuni);
+      uf = MAPA_ESTADOS_POR_EXTENSO[rawState] || MAPA_ESTADOS_POR_EXTENSO[normalizeText(rawState)] || "GO";
+      return { municipio, uf };
+    }
+  }
+
+  // 2. Busca secundária por qualquer nome de estado por extenso
+  for (const [extenso, sigla] of Object.entries(MAPA_ESTADOS_POR_EXTENSO)) {
+    if (extenso.length > 2) {
+      const regexStateOnly = new RegExp(`([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})?)\\s+(?:\\/|-|,|\\s)*\\b${extenso}\\b`, 'i');
+      const mState = text.match(regexStateOnly);
+      if (mState && !["município", "cidade", "prefeitura"].includes(mState[1].toLowerCase())) {
+        municipio = toTitleCase(mState[1].trim());
+        uf = sigla;
+        return { municipio, uf };
+      }
+    }
+  }
+
+  return { municipio, uf };
+}
+
 export function extractPersonName(text, tecnicoName = "") {
   if (!text) return "Gestor Municipal";
 
-  const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)/i;
+  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "munícipio", "prefeitura", "secretário", "secretária", "gestor", "diretor", "professor", "professora", "go", "goiás", "df", "mt", "ms"];
+
+  const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,3})/i;
   const matchIntro = text.match(patternIntro);
   if (matchIntro && matchIntro[1]) {
-    const name = matchIntro[1].trim();
-    const noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora"];
-    if (!noise.includes(name.toLowerCase()) && name.length > 2) {
+    const rawWords = matchIntro[1].trim().split(/\s+/);
+    const cleanWords = [];
+    for (const w of rawWords) {
+      if (trailingStopwords.includes(w.toLowerCase())) {
+        break;
+      }
+      cleanWords.push(w);
+    }
+    const name = cleanWords.join(' ').trim();
+    if (name.length > 2) {
       return toTitleCase(name);
     }
   }
@@ -251,10 +325,27 @@ export function extractPersonName(text, tecnicoName = "") {
 export function extractAllPersonNames(text, tecnicoName = "") {
   if (!text) return [];
   const names = [];
-  const senders = text.match(/\]\s*([^:\n]+):/g) || [];
   const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "admin", "fnde"];
   if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
 
+  // 1. Apresentações explícitas
+  const introMatches = text.matchAll(/(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})/gi);
+  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "go", "goiás"];
+  for (const m of introMatches) {
+    if (m[1]) {
+      const rawWords = m[1].trim().split(/\s+/);
+      const cleanWords = [];
+      for (const w of rawWords) {
+        if (trailingStopwords.includes(w.toLowerCase())) break;
+        cleanWords.push(w);
+      }
+      const cleanName = cleanWords.join(' ').trim();
+      if (cleanName.length > 2) names.push(toTitleCase(cleanName));
+    }
+  }
+
+  // 2. Remetentes do WhatsApp
+  const senders = text.match(/\]\s*([^:\n]+):/g) || [];
   for (const s of senders) {
     const clean = s.replace(/\]\s*/, '').replace(':', '').trim();
     const isPhone = /^\+?\d+|\d{4,}/.test(clean);
@@ -264,10 +355,15 @@ export function extractAllPersonNames(text, tecnicoName = "") {
     }
   }
 
-  const introMatches = text.matchAll(/(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)/gi);
-  for (const m of introMatches) {
-    if (m[1] && m[1].trim().length > 2) {
-      names.push(toTitleCase(m[1].trim()));
+  // 3. Nomes próprios maiúsculos soltos (Pass 4 do Python)
+  const patternCapitalized = /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}\s+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}|\b(?:de|da|do|dos|das)\b\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}))\b/g;
+  const capMatches = text.matchAll(patternCapitalized);
+  const noise = ["cecate co", "fnde gov", "transporte escolar", "prefeitura municipal", "educacao go", "caminho da", "caminho de", "dia de", "boa tarde", "bom dia", "boa noite", "whats app", "centro apoio", "centro colaborador", "municipio acreuna"];
+  
+  for (const cm of capMatches) {
+    const candidate = cm[1].trim();
+    if (!noise.some(n => candidate.toLowerCase().includes(n))) {
+      names.push(toTitleCase(candidate));
     }
   }
 
@@ -328,28 +424,33 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     assunto = "Caminho da Escola";
   }
 
-  // 3. UF e Município com Title Case perfeito
-  let uf = "GO";
-  let municipio = "Município Atendido";
-  const muniMatch = combinedText.match(/(?:município|munícipio|cidade|prefeitura)?\s*(?:de\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)\s*(?:\/|-|,|\s)\s*\b(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/i);
-  
-  if (muniMatch) {
-    const rawMuni = muniMatch[1].trim();
-    const noise = ["município", "munícipio", "cidade", "prefeitura", "do", "da", "de"];
-    if (!noise.includes(rawMuni.toLowerCase())) {
-      municipio = toTitleCase(rawMuni);
-      uf = muniMatch[2].toUpperCase();
-    }
-  }
+  // 3. UF e Município com inteligência estendida para nomes por extenso (ex: Goiás, Goiânia, Mato Grosso)
+  const { municipio, uf } = extractLocationFromText(combinedText);
 
   // 4. Extração de Nome do Atendido e Telefone Real
-  const atendidoNome = extractPersonName(combinedText, tecnicoName);
+  let atendidoNome = extractPersonName(combinedText, tecnicoName);
   const telefone = extractPhone(combinedText);
-  const names = extractAllPersonNames(combinedText, tecnicoName);
+  let names = extractAllPersonNames(combinedText, tecnicoName);
   const dates = extractAllDatesFromChat(combinedText);
 
   // 5. Consulta ao banco de capacitação oficial online
   const trainingInfo = await lookupTrainingInfo(municipio, uf, atendidoNome);
+
+  // Se o banco de capacitação encontrar o nome completo do participante registrado (ex: Lúcia Duarte Ribeiro Paes), atualiza atendidoNome
+  if (trainingInfo.capacitacao_participou === "Sim" && trainingInfo.nome_participante) {
+    atendidoNome = trainingInfo.nome_participante;
+    if (!names.includes(atendidoNome)) {
+      names.unshift(atendidoNome);
+    }
+  }
+
+  // Buscar todos os participantes da capacitação do município para adicionar aos chips de nomes disponíveis
+  const participants = await getTrainingParticipantsForMunicipio(municipio, uf);
+  for (const p of participants) {
+    if (!names.includes(p.nome)) {
+      names.unshift(p.nome);
+    }
+  }
 
   // 6. Filtragem de linhas inúteis do WhatsApp (criptografia, etc.)
   const ignorePhrases = ["criptografia", "mensagens e as chamadas", "código de segurança", "mudou", "entrou usando o link", "saiba mais"];
