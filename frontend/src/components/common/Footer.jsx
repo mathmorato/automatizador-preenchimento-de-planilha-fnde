@@ -1,7 +1,8 @@
 import React from 'react';
 import logoCecate from '../../assets/logo-cecate.png';
 
-export const APP_VERSION = "v1.6.5";
+export const APP_VERSION = "v1.6.6";
+
 
 
 

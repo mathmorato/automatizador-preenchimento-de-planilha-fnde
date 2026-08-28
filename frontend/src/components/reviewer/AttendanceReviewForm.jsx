@@ -906,15 +906,16 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
             <select
               name="atendido_cargo"
               className="form-control"
-              value={formData.atendido_cargo}
+              value={formData.atendido_cargo || 'Gestor'}
               onChange={handleChange}
             >
-              <option value="CACs">CACs</option>
               <option value="Gestor">Gestor</option>
+              <option value="CACs">CACs</option>
               {formData.atendido_cargo && !['CACs', 'Gestor'].includes(formData.atendido_cargo) && (
-                <option value={formData.atendido_cargo}>{formData.atendido_cargo} (Extraído)</option>
+                <option value={formData.atendido_cargo}>{formData.atendido_cargo}</option>
               )}
             </select>
+
           </div>
 
           <div className="form-group">
@@ -963,92 +964,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               rows="4"
               value={formData.observacoes}
               onChange={handleChange}
-              placeholder="Digite todos os detalhes da orientação ou pendência (ou gere opções com a IA abaixo)..."
+              placeholder="Digite todos os detalhes da orientação ou pendência..."
             />
-
-            {/* BOTÃO DA IA GEMINI PARA GERAR OPÇÕES DE OBSERVAÇÕES E ENCAMINHAMENTOS */}
-            <button
-              type="button"
-              className="btn-outline"
-              style={{ 
-                marginTop: '8px',
-                width: '100%',
-                border: '1.5px solid #047857', 
-                background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', 
-                color: '#065F46', 
-                fontSize: '0.82rem', 
-                fontWeight: 800, 
-                padding: '8px 12px', 
-                borderRadius: '8px', 
-                cursor: 'pointer', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: '6px',
-                boxShadow: '0 2px 4px rgba(4, 120, 87, 0.12)'
-              }}
-              disabled={loadingObsOptions}
-              onClick={handleGenerateObsOptions}
-            >
-              {loadingObsOptions ? (
-                <>
-                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                  <span>Gemini IA analisando conversa e gerando opções de observações...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} color="#047857" />
-                  <span>🤖 Gerar Opções de Observações e Encaminhamentos com IA Gemini (Preenchimento Automático)</span>
-                </>
-              )}
-            </button>
-
-            {/* OPÇÕES DE OBSERVAÇÕES GERADAS PELA IA GEMINI */}
-            {obsOptions && obsOptions.length > 0 && (
-              <div style={{ marginTop: '10px', background: '#F0FDF4', padding: '12px', borderRadius: '10px', border: '1px solid #86EFAC' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#065F46', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FileText size={15} color="#047857" />
-                  <span>Opções de Observações e Encaminhamentos sugeridas pela IA Gemini (clique para preencher):</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {obsOptions.map((optText, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      style={{
-                        textAlign: 'left',
-                        background: formData.observacoes === optText ? '#047857' : '#FFFFFF',
-                        color: formData.observacoes === optText ? '#FFFFFF' : '#1E293B',
-                        border: formData.observacoes === optText ? '1.5px solid #047857' : '1px solid #CBD5E1',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        lineHeight: '1.4',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onClick={() => setFormData((prev) => ({ ...prev, observacoes: optText }))}
-                    >
-                      <span>{optText}</span>
-                      {formData.observacoes === optText ? (
-                        <Check size={16} color="#FFFFFF" style={{ flexShrink: 0 }} />
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, flexShrink: 0 }}>
-                          Usar esta opção
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+
 
         </div>
 

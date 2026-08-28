@@ -676,7 +676,12 @@ export function extractAllDatesFromChat(text) {
   return unique.length > 0 ? unique : [new Date().toLocaleDateString('pt-BR')];
 }
 
+
+
+
+
 export function extractPhone(text) {
+
   if (!text) return "";
   const match = text.match(/(\+?\d{2,3}\s?)?(\(?\d{2}\)?\s?)(\d{4,5}[-\s]?\d{4})/);
   if (match) {
