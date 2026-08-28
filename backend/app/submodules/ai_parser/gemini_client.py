@@ -14,35 +14,49 @@ ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS
 
 def extract_person_name(text: str, tecnico_name: str = "") -> str:
     """
-    Extrai o nome do atendido/gestor a partir de apresentações na conversa
-    ("Meu nome é X", "Me chamo X", "Sou a X") ou do remetente das mensagens do WhatsApp.
+    Extrai o nome do atendido/gestor a partir de apresentações na conversa,
+    saudações ("Bom dia Neide", "Olá Dra. Maria"), assinaturas ou remetentes do WhatsApp.
     """
     if not text:
         return "Gestor Municipal"
 
-    pattern_intro = r'(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)'
-    intro_match = re.search(pattern_intro, text, re.IGNORECASE)
-    if intro_match:
-        name = intro_match.group(1).strip().title()
-        noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora"]
-        if name.lower() not in noise and len(name) > 2:
-            return name
-
-    senders = re.findall(r'\]\s*([^:\n]+):', text)
-    tech_keywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico"]
+    tech_keywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "fnde", "admin"]
     if tecnico_name:
         tech_keywords.append(tecnico_name.lower())
 
+    # 1. Apresentações explícitas ("Meu nome é X", "Me chamo X", "Sou a X", "Aqui é o X")
+    pattern_intro = r'(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})'
+    intro_match = re.search(pattern_intro, text, re.IGNORECASE)
+    if intro_match:
+        name = intro_match.group(1).strip().title()
+        noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "município", "prefeitura"]
+        if name.lower() not in noise and len(name) > 2 and not any(tk in name.lower() for tk in tech_keywords):
+            return name
+
+    # 2. Saudações e referências diretas ("Boa tarde Neide", "Olá Dra. Maria", "Falo com Carlos")
+    pattern_greetings = r'(?:boa\s+tarde|bom\s+dia|boa\s+noite|olá|ola|prezado[a]?|senhor[a]?|doutor[a]?|falar\s+com|falo\s+com)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})'
+    for match in re.finditer(pattern_greetings, text, re.IGNORECASE):
+        candidate = match.group(1).strip().title()
+        noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "prefeitura", "município", "tudo", "como", "esta", "está", "tudo bem"]
+        if candidate.lower() not in noise and len(candidate) > 2 and not any(tk in candidate.lower() for tk in tech_keywords):
+            return candidate
+
+    # 3. Remetente das mensagens do WhatsApp
+    senders = re.findall(r'\]\s*([^:\n]+):', text)
     for sender in senders:
         s_clean = sender.strip()
         is_phone = bool(re.search(r'^\+?\d+|\d{4,}', s_clean))
         is_tech = any(tk in s_clean.lower() for tk in tech_keywords)
-        
-        if not is_phone and not is_tech:
-            if len(s_clean) > 2 and len(s_clean) < 40:
-                return s_clean.title()
+        if not is_phone and not is_tech and 2 < len(s_clean) < 40:
+            return s_clean.title()
+
+    # 4. Busca entre todos os nomes identificados
+    all_names = extract_all_person_names(text, tecnico_name)
+    if all_names:
+        return all_names[0]
 
     return "Gestor Municipal"
+
 
 def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
     """
@@ -163,7 +177,21 @@ def regenerate_field_content(
     if raw_chat_text and len(raw_chat_text.strip()) > 10:
         chat_block = f"\n--- INÍCIO DA CONVERSA COMPLETA DO ATENDIMENTO ---\n{raw_chat_text[:8000]}\n--- FIM DA CONVERSA COMPLETA DO ATENDIMENTO ---\n"
 
-    prompt = f"""Você é uma Inteligência Artificial especialista em relatórios do FNDE / CECATE CO.
+    if field_name == "atendido_nome":
+        prompt = f"""Você é uma Inteligência Artificial especialista em extração de nomes de pessoas em conversas do WhatsApp do FNDE / CECATE CO.
+Sua missão é RELER A CONVERSA COMPLETA DO ATENDIMENTO abaixo e identificar O NOME REAL DA PESSOA ATENDIDA (gestor, secretário, usuário do município ou conselheiro).
+
+{chat_block}
+
+REGRAS OBRIGATÓRIAS:
+1. Releia atentamente todas as falas, apresentações ("Meu nome é X", "Me chamo X", "Sou a X", "Aqui é o X"), saudações ("Boa tarde, Neide") e referências feitas pelo técnico ("Combinado, Lucia Duarte").
+2. NUNCA retorne o nome dos técnicos do CECATE CO (ex: Matheus Morato, Willer Carvalho, Lara, Marcos, Kariny, Dheovanna).
+3. Se encontrar o nome da pessoa atendida, retorne APENAS o nome limpo formatado em maiúsculas/minúsculas adequadas (ex: "Neide", "Maria José Silva", "Carlos Eduardo").
+4. Se absolutamente nenhum nome próprio de pessoa atendida for mencionado na conversa, retorne "Gestor Municipal".
+5. Retorne EXCLUSIVAMENTE o nome sem textos adicionais, explicações ou aspas.
+"""
+    else:
+        prompt = f"""Você é uma Inteligência Artificial especialista em relatórios do FNDE / CECATE CO.
 Sua missão é RELER A CONVERSA COMPLETA DO ATENDIMENTO e gerar a melhor interpretação para o campo '{field_name}'.
 Aprenda com o estilo, vocabulário e padrão dos exemplos reais da planilha oficial abaixo.
 
@@ -182,6 +210,7 @@ REGRAS OBRIGATÓRIAS:
 - Retorne EXCLUSIVAMENTE o texto final aprimorado para o campo.
 - Não adicione explicações, aspas ou introduções.
 """
+
 
     if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip() != "":
         models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']

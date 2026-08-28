@@ -519,29 +519,41 @@ export function extractDateFromText(text) {
 export function extractPersonName(text, tecnicoName = "") {
   if (!text) return "Gestor Municipal";
 
+  const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "fnde", "admin"];
+  if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
   const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "munícipio", "prefeitura", "secretário", "secretária", "gestor", "diretor", "professor", "professora", "go", "goiás", "df", "mt", "ms", "trabalho"];
 
+  // 1. Apresentações explícitas
   const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,3})/i;
   const matchIntro = text.match(patternIntro);
   if (matchIntro && matchIntro[1]) {
     const rawWords = matchIntro[1].trim().split(/\s+/);
     const cleanWords = [];
     for (const w of rawWords) {
-      if (trailingStopwords.includes(w.toLowerCase())) {
-        break;
-      }
+      if (trailingStopwords.includes(w.toLowerCase())) break;
       cleanWords.push(w);
     }
     const name = cleanWords.join(' ').trim();
-    if (name.length > 2) {
+    if (name.length > 2 && !techKeywords.some(tk => name.toLowerCase().includes(tk))) {
       return toTitleCase(name);
     }
   }
 
-  const senders = text.match(/\]\s*([^:\n]+):/g) || [];
-  const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico"];
-  if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
+  // 2. Saudações e referências diretas ("Boa tarde Neide", "Olá Dra. Maria", "Falo com Carlos")
+  const patternGreetings = /(?:boa\s+tarde|bom\s+dia|boa\s+noite|olá|ola|prezado[a]?|senhor[a]?|doutor[a]?|falar\s+com|falo\s+com)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})/gi;
+  const matchesGreet = Array.from(text.matchAll(patternGreetings));
+  for (const m of matchesGreet) {
+    if (m[1]) {
+      const candidate = m[1].trim();
+      const noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "prefeitura", "município", "tudo", "como", "esta", "está", "tudo bem"];
+      if (!noise.includes(candidate.toLowerCase()) && candidate.length > 2 && !techKeywords.some(tk => candidate.toLowerCase().includes(tk))) {
+        return toTitleCase(candidate);
+      }
+    }
+  }
 
+  // 3. Remetentes das mensagens do WhatsApp
+  const senders = text.match(/\]\s*([^:\n]+):/g) || [];
   for (const s of senders) {
     const clean = s.replace(/\]\s*/, '').replace(':', '').trim();
     const isPhone = /^\+?\d+|\d{4,}/.test(clean);
@@ -551,8 +563,15 @@ export function extractPersonName(text, tecnicoName = "") {
     }
   }
 
+  // 4. Busca entre todos os nomes extraídos
+  const allNames = extractAllPersonNames(text, tecnicoName);
+  if (allNames && allNames.length > 0) {
+    return allNames[0];
+  }
+
   return "Gestor Municipal";
 }
+
 
 export function extractAllPersonNames(text, tecnicoName = "") {
   if (!text) return [];

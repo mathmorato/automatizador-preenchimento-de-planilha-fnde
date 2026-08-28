@@ -1,6 +1,7 @@
 {
   "name": "automatizador-preenchimento-de-planilha-fnde",
-  "version": "1.4.2",
+  "version": "1.4.4",
+
 
   "private": true,
   "description": "Automador de Preenchimento de Planilha FNDE - CECATE CO / UFG",
