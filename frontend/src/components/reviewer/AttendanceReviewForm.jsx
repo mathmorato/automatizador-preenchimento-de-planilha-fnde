@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw } from 'lucide-react';
+import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw, Sparkles } from 'lucide-react';
 import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants } from '../../services/api';
 import { extractLocationFromText, matchCanonicalMunicipio } from '../../services/clientParser';
 import municipiosData from '../../data/municipios.json';
@@ -1004,6 +1004,44 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               onChange={handleChange}
               placeholder="Nome do gestor ou contato (ou digite aqui manualmente)"
             />
+
+            {/* BOTÃO DA IA GEMINI PARA GERAR LISTA DE NOMES E PREENCHER AUTOMÁTICO */}
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '8px',
+                width: '100%',
+                border: '1.5px solid #0284C7', 
+                background: 'linear-gradient(135deg, #EBF5FF 0%, #E0F2FE 100%)', 
+                color: '#0369A1', 
+                fontSize: '0.82rem', 
+                fontWeight: 800, 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.12)'
+              }}
+              disabled={loadingNome}
+              onClick={handleRegenerateNome}
+            >
+              {loadingNome ? (
+                <>
+                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+                  <span>Gemini IA analisando conversa e buscando lista de nomes...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} color="#0284C7" />
+                  <span>🤖 Gerar Lista de Nomes com IA Gemini (Preenchimento Automático)</span>
+                </>
+              )}
+            </button>
+
 
             {/* NOMES IDENTIFICADOS NA CONVERSA */}
             {chatNames && chatNames.length > 0 && (
