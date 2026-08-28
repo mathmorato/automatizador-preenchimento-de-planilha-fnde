@@ -1164,8 +1164,8 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         </div>
 
         <div style={{ marginBottom: '15px', fontSize: '0.82rem', color: '#047857', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <BrainCircuit size={16} />
-          <span><strong>Aprendizado Contínuo Ativo:</strong> Ao confirmar a gravação, a IA aprende com as suas edições para aprimorar os próximos atendimentos da equipe!</span>
+          <CheckCircle size={16} />
+          <span><strong>Sincronização Ativa:</strong> Ao confirmar, o atendimento será gravado na planilha oficial do FNDE e no banco de dados.</span>
         </div>
 
         <div className="actions-row">
