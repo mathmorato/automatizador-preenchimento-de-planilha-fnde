@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { parseChatClientSide, fetchLiveNextRow, getTrainingParticipantsForMunicipio } from './clientParser';
+import { parseChatClientSide, fetchLiveNextRow, getTrainingParticipantsForMunicipio, regenerateFieldClientSide, checkRowStatusClientSide } from './clientParser';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -56,7 +56,7 @@ export async function checkRowStatus(targetRow, idToken) {
     });
     return response.data;
   } catch (err) {
-    return { success: true, target_row: targetRow, is_empty: true, preview: [] };
+    return await checkRowStatusClientSide(targetRow);
   }
 }
 
@@ -75,10 +75,11 @@ export async function regenerateAIField({ fieldName, currentValue, rawChatText, 
     );
     return response.data;
   } catch (err) {
+    const generatedText = regenerateFieldClientSide({ fieldName, currentValue, rawChatText, userInstruction, assunto });
     return {
       success: true,
       field_name: fieldName,
-      generated_text: currentValue || "Texto atualizado",
+      generated_text: generatedText,
     };
   }
 }

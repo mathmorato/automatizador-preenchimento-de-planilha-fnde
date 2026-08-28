@@ -515,3 +515,68 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     next_row: nextRow
   };
 }
+
+export function regenerateFieldClientSide({ fieldName, currentValue, rawChatText, userInstruction, assunto }) {
+  const text = rawChatText || currentValue || "";
+  const instruction = (userInstruction || "").toLowerCase();
+
+  if (fieldName === "atendido_nome") {
+    return extractPersonName(text);
+  }
+
+  if (fieldName === "resumo_demanda") {
+    let base = currentValue;
+    if (text && text.length > 20) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 10 && !/criptografia|mensagens/i.test(l));
+      if (lines.length > 0) {
+        const topicLine = lines.find(l => /dúvida|duvida|prestação|prestacao|adesão|adesao|cadastro|rota|ônibus|sistema|acesso|regularização/i.test(l)) || lines[0];
+        base = topicLine.replace(/^\[.*?\]\s*/, '').replace(/^.*?:/, '').trim();
+      }
+    }
+
+    if (instruction.includes("curt") || instruction.includes("resum")) {
+      const words = base.split(/\s+/);
+      return words.slice(0, 7).join(' ') + (words.length > 7 ? '...' : '');
+    } else if (instruction.includes("formal")) {
+      return `Solicitação de orientação técnica sobre o programa ${assunto || "SETE"}: ${base}`;
+    }
+    return base;
+  }
+
+  if (fieldName === "observacoes") {
+    let baseObs = currentValue;
+    if (text && text.length > 20) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => !/criptografia|mensagens/i.test(l));
+      baseObs = lines.map(l => l.replace(/^\[.*?\]\s*/, '')).slice(0, 6).join('\n');
+    }
+
+    if (instruction.includes("pendênc") || instruction.includes("pendenc")) {
+      return `${baseObs}\n\n[Pendência]: Aguarda envio de documento comprobatório pelo município.`;
+    } else if (instruction.includes("resum")) {
+      const lines = baseObs.split('\n');
+      return lines.slice(0, 3).join('\n');
+    }
+    return baseObs;
+  }
+
+  return currentValue;
+}
+
+export async function checkRowStatusClientSide(targetRow) {
+  try {
+    const resp = await fetch(LIVE_SHEET_CSV_URL);
+    if (resp.ok) {
+      const csvText = await resp.text();
+      const lines = csvText.split('\n');
+      if (targetRow <= lines.length) {
+        const line = lines[targetRow - 1];
+        const cells = parseCSVLine(line).filter(Boolean);
+        const isEmpty = cells.length === 0;
+        return { success: true, target_row: targetRow, is_empty: isEmpty, preview: cells };
+      }
+    }
+  } catch (e) {
+    console.warn("Aviso ao checar linha client-side:", e);
+  }
+  return { success: true, target_row: targetRow, is_empty: true, preview: [] };
+}
