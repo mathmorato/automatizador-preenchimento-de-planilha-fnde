@@ -1,7 +1,20 @@
 import JSZip from 'jszip';
+import { createWorker } from 'tesseract.js';
 
 const TRAINING_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CAZBdzN_Wz_z-XM1vrhKTtCcE3PNuTSd8QW9b5cC3Pk/export?format=csv&gid=943666845";
 const LIVE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1lQyVlaZOyem8F7SaaeRSpgx1JOTQVRzg7XawseG3TgQ/export?format=csv&gid=1401168846";
+
+export async function performOCR(imageFileOrUrl) {
+  try {
+    const worker = await createWorker(['por', 'eng']);
+    const ret = await worker.recognize(imageFileOrUrl);
+    await worker.terminate();
+    return ret.data.text || "";
+  } catch (e) {
+    console.warn("Aviso ao realizar OCR com Tesseract.js (PT+EN):", e);
+    return "";
+  }
+}
 
 const MAPA_ESTADOS_POR_EXTENSO = {
   "ACRE": "AC", "AC": "AC",
@@ -398,12 +411,17 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
 
   if (files && files.length > 0) {
     for (const file of files) {
-      if (file.name.endsWith('.zip')) {
+      if (file.name.endsWith('.zip') || file.type?.includes('zip')) {
         const { text } = await extractZipContent(file);
         combinedText += `\n${text}`;
-      } else if (file.name.endsWith('.txt')) {
+      } else if (file.name.endsWith('.txt') || file.type?.includes('text')) {
         const txt = await file.text();
         combinedText += `\n${txt}`;
+      } else if (file.type?.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)) {
+        const ocrText = await performOCR(file);
+        if (ocrText) {
+          combinedText += `\n--- [Texto da Imagem (OCR PT/EN): ${file.name}] ---\n${ocrText}\n`;
+        }
       }
     }
   }

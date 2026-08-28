@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FileText, Image as ImageIcon, Sparkles, UserCheck, MessageSquareText } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Upload, FileText, Image as ImageIcon, Sparkles, UserCheck, MessageSquareText, FolderArchive } from 'lucide-react';
 
 export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess, onError }) {
   const [files, setFiles] = useState([]);
@@ -7,6 +7,9 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
   const [customText, setCustomText] = useState('');
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  const fileInputZipRef = useRef(null);
+  const fileInputImageRef = useRef(null);
 
   const handleFileChange = (e) => {
     if (e.target.files) {
@@ -64,7 +67,7 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
         <Sparkles color="#F3A712" size={22} /> Envio de Conversa ou Capturas de Tela (WhatsApp)
       </div>
       <p className="panel-subtitle">
-        Envie os prints do atendimento ou o arquivo exportado (.zip / .txt) do WhatsApp para a Inteligência Artificial extrair os dados.
+        Envie os prints do atendimento ou o arquivo exportado (.zip / .txt) do WhatsApp para a Inteligência Artificial extrair os dados com OCR (Português/Inglês).
       </p>
 
       <form onSubmit={handleSubmit}>
@@ -90,23 +93,53 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
           onDragOver={handleDrag}
           onDragLeave={handleDrag}
           onDrop={handleDrop}
+          style={{ padding: '2rem 1rem' }}
         >
           <Upload className="dropzone-icon" />
           <h3 style={{ fontFamily: 'Outfit, sans-serif', color: 'var(--dark-navy)', fontSize: '1.15rem' }}>
             Arraste e solte os prints ou arquivo de chat aqui
           </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
-            Formatos suportados: PNG, JPG, WEBP (prints) ou arquivos .ZIP / .TXT exportados do WhatsApp
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px', marginBottom: '1rem' }}>
+            Formatos suportados: PNG, JPG, WEBP (com OCR em Português/Inglês) ou arquivos .ZIP / .TXT do WhatsApp
           </p>
 
-          <label htmlFor="file-upload" className="btn btn-secondary" style={{ display: 'inline-flex', marginTop: '1.25rem' }}>
-            Selecionar Arquivos
-          </label>
+          {/* BOTÕES DEDICADOS PARA SUPORTE COMPLETO MOBILE & DESKTOP */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => fileInputZipRef.current && fileInputZipRef.current.click()}
+              style={{ fontWeight: 700, padding: '10px 16px', background: '#EBF5FF', color: '#0066B3', border: '1px solid #93C5FD' }}
+            >
+              <FolderArchive size={18} color="#0066B3" /> Selecionar Arquivo .ZIP / .TXT
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => fileInputImageRef.current && fileInputImageRef.current.click()}
+              style={{ fontWeight: 700, padding: '10px 16px', background: '#F0FDF4', color: '#047857', border: '1px solid #86EFAC' }}
+            >
+              <ImageIcon size={18} color="#047857" /> Selecionar Prints / Imagens
+            </button>
+          </div>
+
+          {/* INPUT PARA ZIP/DOCUMENTOS (Compatível com Android e iOS) */}
           <input
-            id="file-upload"
+            ref={fileInputZipRef}
             type="file"
             multiple
-            accept="image/*,.zip,.txt"
+            accept=".zip,.txt,application/zip,application/x-zip,application/x-zip-compressed,application/octet-stream,text/plain,*/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+
+          {/* INPUT PARA IMAGENS */}
+          <input
+            ref={fileInputImageRef}
+            type="file"
+            multiple
+            accept="image/*,.png,.jpg,.jpeg,.webp"
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
@@ -116,7 +149,7 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
           <div className="file-preview-list">
             {files.map((file, idx) => (
               <div key={idx} className="file-chip">
-                {file.name.endsWith('.zip') || file.name.endsWith('.txt') ? (
+                {file.name.endsWith('.zip') || file.name.endsWith('.txt') || file.type.includes('zip') ? (
                   <FileText size={16} color="#0066B3" />
                 ) : (
                   <ImageIcon size={16} color="#047857" />
@@ -147,7 +180,7 @@ export default function ChatUploader({ loggedUser, onParseStart, onParseSuccess,
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? (
               <>
-                <div className="spinner"></div> Analisando Conversa com IA...
+                <div className="spinner"></div> Processando com IA &amp; OCR (PT/EN)...
               </>
             ) : (
               <>

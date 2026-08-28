@@ -944,7 +944,9 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
             marginBottom: '1.25rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px'
+            gap: '12px',
+            maxWidth: '100%',
+            overflow: 'hidden'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -952,12 +954,12 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               <Hash size={22} color="#0066B3" /> Número da Linha de Destino na Planilha FNDE:
             </label>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="row-buttons-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {/* Campo de Número da Linha */}
               <input
                 type="number"
                 min="1"
-                className="form-control"
+                className="form-control target-row-input"
                 style={{ 
                   width: '100px', 
                   fontWeight: 800, 
@@ -991,7 +993,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                   setIsEditingRow(false);
                   verifySpecificRow(targetRow);
                 }}
-                className="btn btn-primary"
+                className="btn btn-primary btn-row-action"
                 disabled={checkingRow}
                 style={{ padding: '9px 14px', background: '#0066B3', color: '#FFF', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
@@ -1013,7 +1015,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                   setIsEditingRow(false);
                   autoFindFreeRow();
                 }}
-                className="btn btn-primary"
+                className="btn btn-primary btn-row-action"
                 disabled={checkingRow}
                 style={{ padding: '9px 14px', background: '#047857', color: '#FFF', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
@@ -1025,7 +1027,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                 <button
                   type="button"
                   onClick={() => setIsEditingRow(true)}
-                  className="btn btn-outline"
+                  className="btn btn-outline btn-row-action"
                   style={{ padding: '9px 14px', borderColor: '#D97706', color: '#D97706', background: '#FFFBEB', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Edit3 size={16} /> Digitar Manualmente
@@ -1037,7 +1039,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                     setIsEditingRow(false);
                     verifySpecificRow(targetRow);
                   }}
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-row-action"
                   style={{ padding: '9px 14px', background: '#10B981', borderColor: '#10B981', color: '#FFF', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Check size={16} /> Validar Digitada
@@ -1048,14 +1050,20 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
           {/* Indicador de Status da Linha Alvo Verificada */}
           {rowStatus && (
-            <div>
+            <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
               {rowStatus.is_empty ? (
-                <div className="alert alert-success" style={{ margin: 0, padding: '10px 14px', fontSize: '0.9rem' }}>
-                  <CheckCircle size={18} /> Linha <strong>{rowStatus.target_row}</strong> foi <strong>VERIFICADA</strong>: 100% VAZIA na aba <em>'Atendimento aos entes'</em> e pronta para gravação!
+                <div className="alert alert-success" style={{ margin: 0, padding: '12px 14px', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  <CheckCircle size={20} style={{ flexShrink: 0 }} />
+                  <div>
+                    Linha <strong>{rowStatus.target_row}</strong> foi <strong>VERIFICADA</strong>: 100% VAZIA na aba <em>'Atendimento aos entes'</em> e pronta para gravação!
+                  </div>
                 </div>
               ) : (
-                <div className="alert alert-error" style={{ margin: 0, padding: '10px 14px', fontSize: '0.9rem' }}>
-                  <Ban size={18} /> <strong>ATENÇÃO - LINHA {rowStatus.target_row} JÁ POSSUI DADOS:</strong> {rowStatus.preview?.filter(Boolean).slice(0, 3).join(' • ') || 'Linha Ocupada'}. Clique no botão <strong>'Auto-Buscar Linha Livre'</strong> para o sistema encontrar uma linha vazia sozinho.
+                <div className="alert alert-error" style={{ margin: 0, padding: '12px 14px', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  <Ban size={20} style={{ flexShrink: 0 }} />
+                  <div>
+                    <strong>ATENÇÃO - LINHA {rowStatus.target_row} JÁ POSSUI DADOS:</strong> {rowStatus.preview?.filter(Boolean).slice(0, 3).join(' • ') || 'Linha Ocupada'}. Clique no botão <strong>'Auto-Buscar Linha Livre'</strong> para o sistema encontrar uma linha vazia sozinho.
+                  </div>
                 </div>
               )}
             </div>
