@@ -229,13 +229,24 @@ def regenerate_field(req: RegenerateFieldRequest, user: dict = Depends(verify_go
         )
         extracted_names = extract_all_person_names(req.raw_chat_text or "", "Matheus Morato")
         extracted_dates = extract_all_dates_from_chat(req.raw_chat_text or "")
+        
+        blacklisted = ["cargo que ocupa", "cargo que", "cargo", "tipo de vínculo", "cacs", "gestor municipal", "nome completo"]
+        clean_extracted_names = [n for n in extracted_names if not any(bl in n.lower() for bl in blacklisted)]
+
+        if req.field_name == "atendido_nome":
+            if new_text and any(bl in new_text.lower() for bl in blacklisted):
+                new_text = clean_extracted_names[0] if clean_extracted_names else "Gestor Municipal"
+            elif new_text and new_text != "Gestor Municipal" and new_text not in clean_extracted_names:
+                clean_extracted_names.insert(0, new_text)
+
         return {
             "success": True,
             "field_name": req.field_name,
             "generated_text": new_text,
-            "extracted_names": extracted_names,
+            "extracted_names": clean_extracted_names,
             "extracted_dates": extracted_dates
         }
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao regenerar com IA: {str(e)}")
 

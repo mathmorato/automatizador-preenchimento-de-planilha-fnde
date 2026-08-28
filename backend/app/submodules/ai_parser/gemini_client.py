@@ -77,6 +77,17 @@ def extract_person_name(text: str, tecnico_name: str = "") -> str:
 
 
 
+BLACK_LIST_NAMES = [
+    "cargo que ocupa", "cargo que", "cargo ocupado", "cargo",
+    "tipo de vinculo", "tipo de vínculo", "vinculo", "vínculo",
+    "municipio que representa", "município que representa",
+    "preencha aqui", "seu nome", "nome completo", "nome do atendido", "nome",
+    "telefone de contato", "qual o seu cargo", "cacs", "cacs pnate",
+    "gestor municipal", "gestor", "atendimento", "solicitacao", "solicitação",
+    "prefeitura municipal", "educacao", "educação", "transporte escolar",
+    "cecate co", "fnde gov", "whats app", "boa tarde", "bom dia", "boa noite"
+]
+
 def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
     """
     Extrai TODOS os possíveis nomes de pessoas mencionados na conversa do atendimento.
@@ -100,7 +111,6 @@ def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
             names.append(cand)
 
     # 1. Apresentações explícitas
-
     pattern_intro = r'(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
     for m in re.finditer(pattern_intro, text, re.IGNORECASE):
         names.append(m.group(1).strip().title())
@@ -136,11 +146,14 @@ def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
     for n in names:
         words = [w for w in n.split() if w.lower() not in stopwords]
         if words:
-            clean_name = " ".join(words)
-            if clean_name not in unique and len(clean_name) >= 3 and not any(clean_name in u for u in unique):
+            clean_name = " ".join(words).strip()
+            clean_lower = clean_name.lower()
+            is_blacklisted = any(bl in clean_lower for bl in BLACK_LIST_NAMES)
+            if not is_blacklisted and clean_name not in unique and len(clean_name) >= 3 and not any(clean_name in u for u in unique):
                 unique.append(clean_name)
 
     return unique
+
 
 def extract_all_dates_from_chat(text: str) -> List[str]:
     """
