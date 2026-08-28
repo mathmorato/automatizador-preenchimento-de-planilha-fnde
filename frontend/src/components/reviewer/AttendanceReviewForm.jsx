@@ -50,16 +50,8 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   const [selectedParticipantIdx, setSelectedParticipantIdx] = useState('');
 
   // Nomes Extraídos da Conversa do Chat
-  const [chatNames, setChatNames] = useState(extractedNames || []);
   const [chatDates, setChatDates] = useState(extractedDates || []);
 
-  useEffect(() => {
-    if (extractedNames && extractedNames.length > 0) {
-      setChatNames(extractedNames);
-    } else {
-      setChatNames(["Gestor Municipal"]);
-    }
-  }, [extractedNames]);
 
 
 
@@ -80,7 +72,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   const [obsOptions, setObsOptions] = useState([]);
   const [loadingObsOptions, setLoadingObsOptions] = useState(false);
 
-  const [loadingNome, setLoadingNome] = useState(false);
 
   // Função 1: Verificar se a Linha Específica está Livre
   const verifySpecificRow = useCallback(async (rowToVerify) => {
@@ -282,55 +273,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     }
   };
 
-  // Regenerar Nome e Gerar Lista de NOMES PRÓPRIOS de Pessoas Físicas com IA Gemini
-  const handleRegenerateNome = async () => {
-    setLoadingNome(true);
-    setFormError(null);
-    try {
-      const textToScan = rawChatText || formData.observacoes || "";
-      const res = await regenerateAIField({
-        fieldName: 'atendido_nome',
-        currentValue: formData.atendido_nome,
-        rawChatText: textToScan,
-        userInstruction: 'Reler a conversa completa e extrair exclusivamente nomes próprios de pessoas físicas atendidas (Nome e Sobrenome reais). NUNCA retorne cargos ou funções.',
-        assunto: formData.assunto,
-        idToken
-      });
 
-      const properNames = [];
-
-      // 1. Nomes próprios reais extraídos da conversa pela IA Gemini / Backend
-      if (res.extracted_names && res.extracted_names.length > 0) {
-        res.extracted_names.forEach(n => {
-          if (n && !properNames.includes(n)) properNames.push(n);
-        });
-      }
-
-      // 2. Participantes cadastrados em capacitação do município
-      if (trainingParticipants && trainingParticipants.length > 0) {
-        trainingParticipants.forEach(p => {
-          if (p.nome && !properNames.includes(p.nome)) properNames.push(p.nome);
-        });
-      }
-
-      if (properNames.length === 0) {
-        properNames.push("Gestor Municipal");
-      }
-
-      setChatNames(properNames);
-
-      // Preencher o melhor nome retornado se não for genérico
-      if (res.success && res.generated_text && res.generated_text !== "Gestor Municipal") {
-        setFormData(prev => ({ ...prev, atendido_nome: res.generated_text }));
-      } else if (properNames.length > 0) {
-        setFormData(prev => ({ ...prev, atendido_nome: properNames[0] }));
-      }
-    } catch (err) {
-      setFormError('[ERRO DA IA GEMINI] ' + (err.response?.data?.detail || 'Erro ao extrair nomes de pessoas com a IA.'));
-    } finally {
-      setLoadingNome(false);
-    }
-  };
 
 
 
@@ -944,76 +887,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               onChange={handleChange}
               placeholder="Nome do gestor ou contato (ou digite aqui manualmente)"
             />
-
-            {/* BOTÃO DA IA GEMINI PARA GERAR LISTA DE NOMES E PREENCHER AUTOMÁTICO */}
-            <button
-              type="button"
-              className="btn-outline"
-              style={{ 
-                marginTop: '8px',
-                width: '100%',
-                border: '1.5px solid #0284C7', 
-                background: 'linear-gradient(135deg, #EBF5FF 0%, #E0F2FE 100%)', 
-                color: '#0369A1', 
-                fontSize: '0.82rem', 
-                fontWeight: 800, 
-                padding: '8px 12px', 
-                borderRadius: '8px', 
-                cursor: 'pointer', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: '6px',
-                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.12)'
-              }}
-              disabled={loadingNome}
-              onClick={handleRegenerateNome}
-            >
-              {loadingNome ? (
-                <>
-                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                  <span>Gemini IA analisando conversa e buscando lista de nomes...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} color="#0284C7" />
-                  <span>🤖 Gerar Lista de Nomes com IA Gemini (Preenchimento Automático)</span>
-                </>
-              )}
-            </button>
-
-
-            {/* NOMES IDENTIFICADOS NA CONVERSA */}
-            {chatNames && chatNames.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0066B3', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <User size={13} color="#0066B3" /> Nomes identificados no texto da conversa (clique para escolher ou digite manualmente acima):
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {chatNames.map((name, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      style={{
-                        background: formData.atendido_nome === name ? '#0066B3' : '#EBF5FF',
-                        color: formData.atendido_nome === name ? '#FFFFFF' : '#0066B3',
-                        border: formData.atendido_nome === name ? '1px solid #005291' : '1px solid #BFDBFE',
-                        padding: '4px 12px',
-                        borderRadius: '16px',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        boxShadow: formData.atendido_nome === name ? '0 2px 4px rgba(0,102,179,0.25)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onClick={() => setFormData(prev => ({ ...prev, atendido_nome: name }))}
-                    >
-                      👤 {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="form-group">
