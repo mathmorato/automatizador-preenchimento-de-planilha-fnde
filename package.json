@@ -1,0 +1,11 @@
+{
+  "name": "automatizador-preenchimento-de-planilha-fnde",
+  "version": "1.4.1",
+  "private": true,
+  "description": "Automador de Preenchimento de Planilha FNDE - CECATE CO / UFG",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "backend": "cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+  }
+}
