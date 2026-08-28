@@ -531,6 +531,38 @@ export function extractPhone(text) {
   return "";
 }
 
+export function extractAssuntoFromText(text, trainingInfo) {
+  if (!text) return "SETE";
+  const lower = text.toLowerCase();
+
+  // 1. Palavras-chave de Capacitação / Formação / Treinamento / Oficina / Curso
+  const hasCapacitacaoKeywords = /capacitaçã|capacitacao|formaçã|formacao|treinamento|oficina|curso|encontro técnico|encontro tecnico|certificado|participante|presença|frequência|frequencia/i.test(lower);
+  
+  // 2. Palavras-chave de PNATE
+  const hasPNATE = /\bpnate\b|programa nacional de apoio ao transporte/i.test(lower);
+  
+  // 3. Palavras-chave de Caminho da Escola
+  const hasCaminhoDaEscola = /caminho da escola|ônibus|onibus|veículo|veiculo|pregão|pregao|renovação de frota|renovacao de frota|aquisição de veículo|aquisicao/i.test(lower);
+  
+  // 4. Palavras-chave de SETE
+  const hasSETE = /\bsete\b|sistema de gestão do transporte|sistema sete|módulo rota|modulo rota|módulo aluno|modulo aluno/i.test(lower);
+
+  // Se o banco de dados oficial confirmou participação ou o texto cita capacitação/formação
+  if (hasCapacitacaoKeywords || (trainingInfo && trainingInfo.capacitacao_participou === "Sim")) {
+    // Se cita capacitação/formação e não é uma dúvida técnica de erro no sistema SETE, identifica Capacitação
+    if (hasCapacitacaoKeywords && (!hasSETE || /capacitação|capacitacao|formação|formacao|curso|oficina|treinamento/i.test(lower))) {
+      return "Capacitação";
+    }
+  }
+
+  if (hasPNATE) return "PNATE";
+  if (hasCaminhoDaEscola) return "Caminho da Escola";
+  if (hasCapacitacaoKeywords) return "Capacitação";
+  if (hasSETE) return "SETE";
+
+  return "SETE";
+}
+
 export async function parseChatClientSide({ files, textContent, tecnicoName }) {
   let combinedText = textContent || "";
 
@@ -559,25 +591,20 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     dataAtendimento = dateMatch[1];
   }
 
-  // 2. Assunto
-  let assunto = "SETE";
-  if (/pnate/i.test(combinedText)) {
-    assunto = "PNATE";
-  } else if (/caminho da escola|ônibus|veículo|pregão/i.test(combinedText)) {
-    assunto = "Caminho da Escola";
-  }
-
-  // 3. UF e Município com inteligência estendida para nomes por extenso (ex: Goiás, Goiânia, Mato Grosso)
+  // 2. UF e Município com inteligência estendida para nomes por extenso (ex: Goiás, Goiânia, Mato Grosso)
   const { municipio, uf } = extractLocationFromText(combinedText);
 
-  // 4. Extração de Nome do Atendido e Telefone Real
+  // 3. Extração de Nome do Atendido e Telefone Real
   let atendidoNome = extractPersonName(combinedText, tecnicoName);
   const telefone = extractPhone(combinedText);
   let names = extractAllPersonNames(combinedText, tecnicoName);
   const dates = extractAllDatesFromChat(combinedText);
 
-  // 5. Consulta ao banco de capacitação oficial online
+  // 4. Consulta ao banco de capacitação oficial online
   const trainingInfo = await lookupTrainingInfo(municipio, uf, atendidoNome);
+
+  // 5. Identificação Inteligente do Assunto (Capacitação, PNATE, Caminho da Escola, SETE)
+  const assunto = extractAssuntoFromText(combinedText, trainingInfo);
 
   // Se o banco de capacitação encontrar o nome completo do participante registrado (ex: Lúcia Duarte Ribeiro Paes), atualiza atendidoNome
   if (trainingInfo.capacitacao_participou === "Sim" && trainingInfo.nome_participante) {
