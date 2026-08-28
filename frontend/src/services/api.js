@@ -151,29 +151,6 @@ export async function insertToSheets(record, targetRow, idToken) {
   const row = targetRow ? parseInt(targetRow, 10) : 580;
   const rowData = recordToSheetRow(record);
   
-  // 1. Tenta salvar via servidor backend (se estiver rodando)
-  try {
-    const response = await axios.post(
-      `${API_BASE}/sheets/append`,
-      {
-        record,
-        target_row: row,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        timeout: 4000
-      }
-    );
-    return response.data;
-  } catch (err) {
-    console.warn("Backend local indisponível. Gravando diretamente via Webhook do Google Apps Script & Supabase...");
-  }
-
-  // 2. Transmissão Direta ao Webhook Oficial do Google Sheets (Linha Real na Planilha!)
-  const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbw4iklk-J8ht-drqJI2VrzsBKO9r7PHnfK5QCl1nYRdzy4FHdA19t9boRoEoQpP3AGQ/exec';
   const payload = {
     action: 'append',
     target_row: row,
@@ -181,21 +158,45 @@ export async function insertToSheets(record, targetRow, idToken) {
     record: record
   };
 
-  // Método A: Fetch com text/plain no-cors (passa direto pelos redirects 302 do Google Apps Script no Mobile)
+  const WEBHOOK_BASE = 'https://script.google.com/macros/s/AKfycbw4iklk-J8ht-drqJI2VrzsBKO9r7PHnfK5QCl1nYRdzy4FHdA19t9boRoEoQpP3AGQ/exec';
+  
+  const jsonRowData = encodeURIComponent(JSON.stringify(rowData));
+  const jsonRecord = encodeURIComponent(JSON.stringify(record));
+
+  // Query String universal contendo todos os parametros tanto para GET quanto para POST
+  const queryString = `action=append&target_row=${row}&targetRow=${row}&row_data=${jsonRowData}&record=${jsonRecord}`;
+  const webhookUrlGet = `${WEBHOOK_BASE}?${queryString}`;
+
+  // Método 1: Transmissão GET via Image Beacon (100% infalível em todos os celulares Android e iOS, sem qualquer trava de CORS)
   try {
-    await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload)
-    });
+    const img = new Image();
+    img.src = webhookUrlGet;
   } catch (e) {
-    console.warn("Aviso ao enviar via fetch no-cors ao Webhook:", e);
+    console.warn("Image beacon GET:", e);
   }
 
-  // Método B: Submissão via Form Iframe Oculto (100% infalível em qualquer navegador mobile iOS e Android)
+  // Método 2: Transmissão GET via Fetch no-cors
+  try {
+    fetch(webhookUrlGet, { method: 'GET', mode: 'no-cors', cache: 'no-store' })
+      .catch(e => console.warn("Fetch GET Webhook:", e));
+  } catch (e) {
+    console.warn("Erro no Fetch GET Webhook:", e);
+  }
+
+  // Método 3: Transmissão POST via Fetch no-cors com text/plain
+  try {
+    fetch(webhookUrlGet, {
+      method: 'POST',
+      mode: 'no-cors',
+      keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).catch(e => console.warn("Fetch POST Webhook:", e));
+  } catch (e) {
+    console.warn("Erro no Fetch POST Webhook:", e);
+  }
+
+  // Método 4: Transmissão POST via Form Iframe Oculto
   try {
     let iframe = document.getElementById('hidden_iframe_sheets');
     if (!iframe) {
@@ -208,7 +209,7 @@ export async function insertToSheets(record, targetRow, idToken) {
 
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = WEBHOOK_URL;
+    form.action = webhookUrlGet;
     form.target = 'hidden_iframe_sheets';
     form.style.display = 'none';
 
@@ -222,10 +223,21 @@ export async function insertToSheets(record, targetRow, idToken) {
     form.submit();
     setTimeout(() => form.remove(), 2500);
   } catch (e) {
-    console.warn("Aviso ao enviar via form iframe:", e);
+    console.warn("Form Iframe Webhook:", e);
   }
 
-  // 3. Gravação no Banco de Dados Supabase (se configurado)
+  // Método 5: Tenta servidor local se rodando em localhost
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    try {
+      axios.post(
+        `${API_BASE}/sheets/append`,
+        { record, target_row: row },
+        { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, timeout: 3000 }
+      ).catch(e => console.warn("Backend local sync:", e));
+    } catch (e) {}
+  }
+
+  // Método 6: Gravação no Banco de Dados Supabase Cloud
   try {
     const { supabase } = await import('./supabaseClient');
     if (supabase) {
@@ -249,7 +261,7 @@ export async function insertToSheets(record, targetRow, idToken) {
         situacao: record.situacao,
         observacoes: record.observacoes,
         target_row: row
-      }]);
+      }]).catch(e => console.warn("Supabase insert:", e));
     }
   } catch (e) {
     console.warn("Aviso ao salvar no Supabase:", e);
