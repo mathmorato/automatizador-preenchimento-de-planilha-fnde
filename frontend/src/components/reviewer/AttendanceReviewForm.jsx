@@ -425,8 +425,9 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               value={formData.iniciativa}
               onChange={handleChange}
             >
-              <option value="Município">Município</option>
               <option value="CECATE">CECATE</option>
+              <option value="Município">Município</option>
+              <option value="Estado">Estado</option>
             </select>
           </div>
 
@@ -515,9 +516,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               value={formData.assunto}
               onChange={handleChange}
             >
-              <option value="SETE">SETE</option>
               <option value="PNATE">PNATE</option>
               <option value="Caminho da Escola">Caminho da Escola</option>
+              <option value="SETE">SETE</option>
+              <option value="Capacitação">Capacitação</option>
             </select>
           </div>
 
@@ -878,14 +880,18 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
           <div className="form-group">
             <label>Cargo:</label>
-            <input
-              type="text"
+            <select
               name="atendido_cargo"
               className="form-control"
               value={formData.atendido_cargo}
               onChange={handleChange}
-              placeholder="Gestor / Secretário de Educação / CACs"
-            />
+            >
+              <option value="CACs">CACs</option>
+              <option value="Gestor">Gestor</option>
+              {formData.atendido_cargo && !['CACs', 'Gestor'].includes(formData.atendido_cargo) && (
+                <option value={formData.atendido_cargo}>{formData.atendido_cargo} (Extraído)</option>
+              )}
+            </select>
           </div>
 
           <div className="form-group">
