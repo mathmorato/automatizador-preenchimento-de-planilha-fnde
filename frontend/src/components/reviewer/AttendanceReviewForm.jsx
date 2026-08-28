@@ -10,6 +10,15 @@ const ESTADOS_BRASIL = [
   'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ];
 
+const STANDARD_NAME_OPTIONS = [
+  "Gestor Municipal",
+  "Secretário(a) de Educação",
+  "Coordenador(a) de Transporte Escolar",
+  "Conselheiro(a) CACS-FUNDEB",
+  "Técnico(a) Municipal",
+  "Motorista / Condutor"
+];
+
 const toStr = (val, fallback = '') => (val !== null && val !== undefined ? String(val) : fallback);
 
 export default function AttendanceReviewForm({ initialData, rawChatText, extractedNames = [], extractedDates = [], idToken, onSubmitToSheets, onCancel }) {
@@ -51,10 +60,13 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   const [chatDates, setChatDates] = useState(extractedDates || []);
 
   useEffect(() => {
-    if (extractedNames && extractedNames.length > 0) {
-      setChatNames(extractedNames);
-    }
+    const list = extractedNames && extractedNames.length > 0 ? [...extractedNames] : [];
+    STANDARD_NAME_OPTIONS.forEach(opt => {
+      if (!list.includes(opt)) list.push(opt);
+    });
+    setChatNames(list);
   }, [extractedNames]);
+
 
   useEffect(() => {
     if (extractedDates && extractedDates.length > 0) {
@@ -277,31 +289,57 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     }
   };
 
-  // Regenerar Nome com IA
+  // Regenerar Nome e Gerar Lista de Opções com IA Gemini
   const handleRegenerateNome = async () => {
     setLoadingNome(true);
     setFormError(null);
     try {
+      const textToScan = rawChatText || formData.observacoes || "";
       const res = await regenerateAIField({
         fieldName: 'atendido_nome',
         currentValue: formData.atendido_nome,
-        rawChatText: rawChatText || formData.observacoes,
-        userInstruction: 'Reler a conversa completa e extrair todos os nomes de atendidos/gestores municipais.',
+        rawChatText: textToScan,
+        userInstruction: 'Reler a conversa completa e extrair todos os nomes de pessoas atendidas e papéis.',
         assunto: formData.assunto,
         idToken
       });
-      if (res.success && res.generated_text) {
-        setFormData(prev => ({ ...prev, atendido_nome: res.generated_text }));
-      }
+
+      const candidates = [];
+
+      // 1. Nomes extraídos da conversa pela IA Gemini / Backend
       if (res.extracted_names && res.extracted_names.length > 0) {
-        setChatNames(res.extracted_names);
+        res.extracted_names.forEach(n => {
+          if (n && !candidates.includes(n)) candidates.push(n);
+        });
+      }
+
+      // 2. Participantes cadastrados em capacitação do município
+      if (trainingParticipants && trainingParticipants.length > 0) {
+        trainingParticipants.forEach(p => {
+          if (p.nome && !candidates.includes(p.nome)) candidates.push(p.nome);
+        });
+      }
+
+      // 3. Opções de cargos/papéis padrão para garantir sempre múltiplas opções
+      STANDARD_NAME_OPTIONS.forEach(opt => {
+        if (!candidates.includes(opt)) candidates.push(opt);
+      });
+
+      setChatNames(candidates);
+
+      // Preencher o melhor nome retornado se não for genérico
+      if (res.success && res.generated_text && res.generated_text !== "Gestor Municipal") {
+        setFormData(prev => ({ ...prev, atendido_nome: res.generated_text }));
+      } else if (candidates.length > 0) {
+        setFormData(prev => ({ ...prev, atendido_nome: candidates[0] }));
       }
     } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar nome com IA.');
+      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar nomes com IA.');
     } finally {
       setLoadingNome(false);
     }
   };
+
 
   // Regenerar Resumo com IA
   const handleRegenerateResumo = async (customInstruction = '') => {
