@@ -652,6 +652,60 @@ export function extractAssuntoFromText(text, trainingInfo) {
   return "SETE";
 }
 
+export async function parseChatWithGeminiAPI({ textContent, apiKey }) {
+  if (!apiKey || !textContent) return null;
+
+  const prompt = `Você é um assistente especialista em analisar conversas do WhatsApp do CECATE Centro-Oeste / FNDE para preenchimento de formulários oficiais do transporte escolar.
+  
+Analise o texto da conversa a seguir e extraia exatamente um objeto JSON válido com os seguintes campos:
+- "uf": a sigla de 2 letras do estado da cidade atendida (ex: "GO", "SP", "MT", "MS")
+- "municipio": o nome limpo do município atendido (ex: "Silvânia", "Santo Antônio de Posse", "Acreúna")
+- "atendido_nome": o nome da pessoa atendida (ex: "Neide")
+- "atendido_telefone": o telefone do atendido limpo (ex: "6296689757")
+- "atendido_cargo": "Gestor" ou "CACs"
+- "assunto": "PNATE", "Caminho da Escola", "SETE" ou "Capacitação"
+- "data_atendimento": a data mais recente da conversa no formato DD/MM/AAAA (ex: "26/06/2026")
+- "resumo_demanda": um resumo claro, conciso e profissional em 1 ou 2 frases da solicitação do atendido
+- "observacoes": observações técnicas detalhadas do suporte realizado para histórico
+- "iniciativa": "Município", "CECATE" ou "Estado"
+- "situacao": "Resolvida" ou "Em andamento"
+- "municipio_respondeu": "Sim" ou "Não"
+
+Texto da conversa:
+"""
+${textContent}
+"""
+
+Responda APENAS com o objeto JSON puro, sem marcações de markdown ou blocos de código.`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+
+    if (!response.ok) {
+      console.warn("Chamada Gemini API retornou status:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const rawJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJsonText) return null;
+
+    const parsed = JSON.parse(rawJsonText);
+    return parsed;
+  } catch (e) {
+    console.warn("Aviso ao consultar API do Gemini:", e);
+    return null;
+  }
+}
+
 export function matchCanonicalMunicipio(extractedMuni, targetUf = "GO") {
   if (!extractedMuni) return (municipiosData[targetUf] || [])[0] || "";
   
@@ -699,27 +753,39 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     }
   }
 
+  // 0. Tenta parsing inteligente completo com a Gemini Flash API se houver chave salva em localStorage
+  const savedApiKey = typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null;
+  let geminiData = null;
+  if (savedApiKey && combinedText.trim().length > 10) {
+    geminiData = await parseChatWithGeminiAPI({ textContent: combinedText, apiKey: savedApiKey });
+  }
+
   // 1. Data do atendimento (Inteligente)
-  const dataAtendimento = extractDateFromText(combinedText);
+  const dataAtendimento = geminiData?.data_atendimento || extractDateFromText(combinedText);
 
   // 2. UF e Município com inteligência e varredura do banco oficial IBGE de 5.570 cidades
   let { municipio, uf } = extractLocationFromText(combinedText);
+  if (geminiData?.uf) uf = geminiData.uf.toUpperCase();
+  if (geminiData?.municipio) municipio = geminiData.municipio;
   municipio = matchCanonicalMunicipio(municipio, uf);
 
   // 3. Extração do Nome do Atendido e Telefone Real
-  let atendidoNome = extractPersonName(combinedText, tecnicoName);
-  const telefone = extractPhone(combinedText);
+  let atendidoNome = geminiData?.atendido_nome || extractPersonName(combinedText, tecnicoName);
+  const telefone = geminiData?.atendido_telefone || extractPhone(combinedText);
   let names = extractAllPersonNames(combinedText, tecnicoName);
+  if (atendidoNome && !names.includes(atendidoNome)) {
+    names.unshift(atendidoNome);
+  }
   const dates = extractAllDatesFromChat(combinedText);
 
   // 4. Extração Inteligente do Cargo (CACs ou Gestor)
-  const atendidoCargo = extractCargoFromText(combinedText);
+  const atendidoCargo = geminiData?.atendido_cargo || extractCargoFromText(combinedText);
 
   // 5. Consulta ao banco de capacitação oficial online
   const trainingInfo = await lookupTrainingInfo(municipio, uf, atendidoNome);
 
   // 6. Identificação Inteligente do Assunto (Capacitação, PNATE, Caminho da Escola, SETE)
-  const assunto = extractAssuntoFromText(combinedText, trainingInfo);
+  const assunto = geminiData?.assunto || extractAssuntoFromText(combinedText, trainingInfo);
 
   // Se o banco de capacitação encontrar o nome completo do participante registrado (ex: Lúcia Duarte Ribeiro Paes), atualiza atendidoNome
   if (trainingInfo.capacitacao_participou === "Sim" && trainingInfo.nome_participante) {
@@ -743,39 +809,44 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
   const meaningfulLines = lines.filter(l => !ignorePhrases.some(ign => l.toLowerCase().includes(ign)));
 
   // 8. Resumo da Demanda inteligente
-  let resumoDemanda = "";
-  const lowerText = combinedText.toLowerCase();
-
-  if (lowerText.includes("acesso") || lowerText.includes("conta gov") || lowerText.includes("gov.br")) {
-    resumoDemanda = `Orientação sobre acesso ao sistema ${assunto} via conta Gov.br pessoal`;
-  }
-  if (lowerText.includes("formação") || lowerText.includes("capacitação") || lowerText.includes("curso")) {
-    resumoDemanda += (resumoDemanda ? " e consulta sobre calendário de capacitações." : `Consulta sobre capacitações do transporte escolar em ${municipio}.`);
-  }
-  if (lowerText.includes("habilita") || lowerText.includes("atualização")) {
-    resumoDemanda += (resumoDemanda ? " Orientado sobre atualização no Habilita FNDE." : " Orientação sobre atualização cadastral no Habilita FNDE.");
-  }
-
+  let resumoDemanda = geminiData?.resumo_demanda || "";
   if (!resumoDemanda) {
-    const topicLine = meaningfulLines.find(l => /dúvida|duvida|prestação|prestacao|adesão|adesao|cadastro|rota|ônibus|sistema|acesso|regularização/i.test(l));
-    if (topicLine) {
-      resumoDemanda = topicLine.replace(/^\[.*?\]\s*/, '').replace(/^.*?:\s*/, '').trim().slice(0, 120);
+    const lowerText = combinedText.toLowerCase();
+
+    if (lowerText.includes("acesso") || lowerText.includes("conta gov") || lowerText.includes("gov.br")) {
+      resumoDemanda = `Orientação sobre acesso ao sistema ${assunto} via conta Gov.br pessoal`;
     }
-  }
-  if (!resumoDemanda) {
-    resumoDemanda = `Atendimento técnico sobre o programa ${assunto} no município de ${municipio} - ${uf}.`;
+    if (lowerText.includes("formação") || lowerText.includes("capacitação") || lowerText.includes("curso")) {
+      resumoDemanda += (resumoDemanda ? " e consulta sobre calendário de capacitações." : `Consulta sobre capacitações do transporte escolar em ${municipio}.`);
+    }
+    if (lowerText.includes("habilita") || lowerText.includes("atualização")) {
+      resumoDemanda += (resumoDemanda ? " Orientado sobre atualização no Habilita FNDE." : " Orientação sobre atualização cadastral no Habilita FNDE.");
+    }
+
+    if (!resumoDemanda) {
+      const topicLine = meaningfulLines.find(l => /dúvida|duvida|prestação|prestacao|adesão|adesao|cadastro|rota|ônibus|sistema|acesso|regularização/i.test(l));
+      if (topicLine) {
+        resumoDemanda = topicLine.replace(/^\[.*?\]\s*/, '').replace(/^.*?:\s*/, '').trim().slice(0, 120);
+      }
+    }
+    if (!resumoDemanda) {
+      resumoDemanda = `Atendimento técnico sobre o programa ${assunto} no município de ${municipio} - ${uf}.`;
+    }
   }
 
   // 9. Observações
-  const obsLines = meaningfulLines.map(l => l.replace(/^\[.*?\]\s*/, ''));
-  let observacoes = obsLines.slice(0, 6).join('\n');
-  if (!observacoes) observacoes = combinedText.slice(0, 300);
+  let observacoes = geminiData?.observacoes || "";
+  if (!observacoes) {
+    const obsLines = meaningfulLines.map(l => l.replace(/^\[.*?\]\s*/, ''));
+    observacoes = obsLines.slice(0, 6).join('\n');
+    if (!observacoes) observacoes = combinedText.slice(0, 300);
 
-  if (trainingInfo.capacitacao_participou === "Sim") {
-    const pNome = trainingInfo.nome_participante || "";
-    const pCpf = trainingInfo.cpf || "";
-    const cpfInfo = pCpf ? ` (CPF: ${pCpf})` : "";
-    observacoes += `\n\n[Formação Confirmada]: Participante ${pNome}${cpfInfo} presente na capacitação de ${trainingInfo.capacitacao_local}.`;
+    if (trainingInfo.capacitacao_participou === "Sim") {
+      const pNome = trainingInfo.nome_participante || "";
+      const pCpf = trainingInfo.cpf || "";
+      const cpfInfo = pCpf ? ` (CPF: ${pCpf})` : "";
+      observacoes += `\n\n[Formação Confirmada]: Participante ${pNome}${cpfInfo} presente na capacitação de ${trainingInfo.capacitacao_local}.`;
+    }
   }
 
   // 10. Consulta da próxima linha livre na planilha oficial
