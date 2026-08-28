@@ -1,5 +1,6 @@
 import React from 'react';
 import { LogOut, ShieldCheck, Download } from 'lucide-react';
+import logoCecate from '../../assets/logo-cecate.png';
 
 export default function Header({ user, onLogout }) {
   const handleDownloadCSV = () => {
@@ -10,7 +11,7 @@ export default function Header({ user, onLogout }) {
     <header className="top-nav">
       <div className="nav-container">
         <a href="/" className="brand-section">
-          <img src="/logo-cecate.png" alt="Logo CECATE UFG FNDE" className="brand-logo" />
+          <img src={logoCecate} alt="Logo CECATE UFG FNDE" className="brand-logo" />
         </a>
 
         {user && (

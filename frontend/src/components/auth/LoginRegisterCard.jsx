@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import { ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
+import logoCecate from '../../assets/logo-cecate.png';
 
 const GOOGLE_CLIENT_ID = "117364440006-k8fb8gfugq42vb07rvjeefh1gpakjr10.apps.googleusercontent.com";
 
@@ -70,7 +71,7 @@ export default function LoginRegisterCard({ onLoginSuccess }) {
       <div className="auth-wrapper">
         <div className="auth-card" style={{ maxWidth: '420px', padding: '2.5rem 2rem', textAlign: 'center' }}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <img src="/logo-cecate.png" alt="CECATE UFG Logo" style={{ height: '70px', maxWidth: '100%', objectFit: 'contain' }} />
+            <img src={logoCecate} alt="CECATE UFG Logo" style={{ height: '70px', maxWidth: '100%', objectFit: 'contain' }} />
           </div>
           
           <h2 className="auth-title" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Automador FNDE</h2>
