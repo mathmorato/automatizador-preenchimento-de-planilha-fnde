@@ -138,23 +138,46 @@ function normalizeText(text) {
   return str.replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function parseCSVLine(text) {
-  const result = [];
-  let cur = '';
+export function parseCSVToRows(text) {
+  if (!text) return [];
+  const rows = [];
+  let currentRow = [];
+  let currentCell = '';
   let inQuotes = false;
+
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
+    const nextC = text[i + 1];
+
     if (c === '"') {
-      inQuotes = !inQuotes;
+      if (inQuotes && nextC === '"') {
+        currentCell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (c === ',' && !inQuotes) {
-      result.push(cur);
-      cur = '';
+      currentRow.push(currentCell.trim().replace(/^"|"$/g, ''));
+      currentCell = '';
+    } else if ((c === '\r' || c === '\n') && !inQuotes) {
+      if (c === '\r' && nextC === '\n') {
+        i++;
+      }
+      currentRow.push(currentCell.trim().replace(/^"|"$/g, ''));
+      rows.push(currentRow);
+      currentRow = [];
+      currentCell = '';
     } else {
-      cur += c;
+      currentCell += c;
     }
   }
-  result.push(cur);
-  return result.map(s => s.trim().replace(/^"|"$/g, ''));
+
+  if (currentCell.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentCell.trim().replace(/^"|"$/g, ''));
+    rows.push(currentRow);
+  }
+
+  return rows;
 }
 
 export async function fetchLiveNextRow() {
@@ -162,9 +185,9 @@ export async function fetchLiveNextRow() {
     const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
     if (resp.ok) {
       const text = await resp.text();
-      const lines = text.split('\n').filter(l => l.trim().length > 0);
-      if (lines.length > 0) {
-        cachedNextRow = lines.length + 1;
+      const rows = parseCSVToRows(text);
+      if (rows.length > 0) {
+        cachedNextRow = rows.length + 1;
         return cachedNextRow;
       }
     }
@@ -646,16 +669,16 @@ export async function checkRowStatusClientSide(targetRow) {
     const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
     if (resp.ok) {
       const csvText = await resp.text();
-      const lines = csvText.split('\n');
-      if (targetRow <= lines.length) {
-        const line = lines[targetRow - 1];
-        const cells = parseCSVLine(line).filter(Boolean);
-        const isEmpty = cells.length === 0;
-        return { success: true, target_row: targetRow, is_empty: isEmpty, preview: cells };
+      const rows = parseCSVToRows(csvText);
+      if (targetRow > 0 && targetRow <= rows.length) {
+        const rowCells = rows[targetRow - 1] || [];
+        const nonEmpty = rowCells.filter(c => c && c.trim().length > 0);
+        const isEmpty = nonEmpty.length === 0;
+        return { success: true, target_row: targetRow, is_empty: isEmpty, preview: nonEmpty };
       }
     }
   } catch (e) {
     console.warn("Aviso ao checar linha client-side:", e);
   }
-  return { success: true, target_row: targetRow, is_empty: true, preview: [] };
+  return { success: true, target_row: targetRow, is_empty: targetRow >= 580, preview: [] };
 }
