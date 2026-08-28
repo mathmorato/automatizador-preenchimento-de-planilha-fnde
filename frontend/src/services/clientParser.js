@@ -159,7 +159,7 @@ function parseCSVLine(text) {
 
 export async function fetchLiveNextRow() {
   try {
-    const resp = await fetch(LIVE_SHEET_CSV_URL);
+    const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
     if (resp.ok) {
       const text = await resp.text();
       const lines = text.split('\n').filter(l => l.trim().length > 0);
@@ -643,7 +643,7 @@ export function regenerateFieldClientSide({ fieldName, currentValue, rawChatText
 
 export async function checkRowStatusClientSide(targetRow) {
   try {
-    const resp = await fetch(LIVE_SHEET_CSV_URL);
+    const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
     if (resp.ok) {
       const csvText = await resp.text();
       const lines = csvText.split('\n');
