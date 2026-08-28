@@ -92,7 +92,7 @@ const MAPA_ESTADOS_POR_EXTENSO = {
   "MATO GROSSO": "MT", "MT": "MT",
   "MATO GROSSO DO SUL": "MS", "MS": "MS",
   "MINAS GERAIS": "MG", "MINAS": "MG", "MG": "MG",
-  "PARA": "PA", "PARÁ": "PA", "PA": "PA",
+  "PARÁ": "PA", "PA": "PA",
   "PARAIBA": "PB", "PARAÍBA": "PB", "PB": "PB",
   "PARANA": "PR", "PARANÁ": "PR", "PR": "PR",
   "PERNAMBUCO": "PE", "PE": "PE",
@@ -483,23 +483,29 @@ export function extractCargoFromText(text) {
 export function extractDateFromText(text) {
   if (!text) return new Date().toLocaleDateString('pt-BR');
   
-  // 1. Formato numérico DD/MM/AAAA ou DD/MM/AA
-  const matchNum = text.match(/\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})\b/);
-  if (matchNum) {
-    let day = matchNum[1].padStart(2, '0');
-    let month = matchNum[2].padStart(2, '0');
-    let year = matchNum[3];
+  // Ignora mensagens de sistema/criptografia do WhatsApp
+  const lines = text.split('\n').filter(l => !/criptografia|protegidas|saiba mais/i.test(l));
+  const cleanText = lines.join('\n');
+
+  // Encontra TODAS as datas numéricas na conversa
+  const allMatches = Array.from(cleanText.matchAll(/\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})\b/g));
+  if (allMatches.length > 0) {
+    // Retorna a ÚLTIMA data registrada na conversa
+    const lastMatch = allMatches[allMatches.length - 1];
+    let day = lastMatch[1].padStart(2, '0');
+    let month = lastMatch[2].padStart(2, '0');
+    let year = lastMatch[3];
     if (year.length === 2) year = `20${year}`;
     return `${day}/${month}/${year}`;
   }
 
-  // 2. Formato por extenso: 15 de outubro de 2025
+  // Formato por extenso: 15 de outubro de 2025
   const meses = {
     janeiro: '01', fev: '02', fevereiro: '02', marco: '03', março: '03',
     abril: '04', maio: '05', junho: '06', julho: '07', agosto: '08',
     setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
   };
-  const matchExtenso = text.match(/\b(\d{1,2})\s+de\s+(janeiro|fevereiro|fev|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+(\d{4}))?\b/i);
+  const matchExtenso = cleanText.match(/\b(\d{1,2})\s+de\s+(janeiro|fevereiro|fev|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+(\d{4}))?\b/i);
   if (matchExtenso) {
     const day = matchExtenso[1].padStart(2, '0');
     const month = meses[matchExtenso[2].toLowerCase()];
@@ -513,7 +519,7 @@ export function extractDateFromText(text) {
 export function extractPersonName(text, tecnicoName = "") {
   if (!text) return "Gestor Municipal";
 
-  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "munícipio", "prefeitura", "secretário", "secretária", "gestor", "diretor", "professor", "professora", "go", "goiás", "df", "mt", "ms"];
+  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "munícipio", "prefeitura", "secretário", "secretária", "gestor", "diretor", "professor", "professora", "go", "goiás", "df", "mt", "ms", "trabalho"];
 
   const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,3})/i;
   const matchIntro = text.match(patternIntro);
@@ -551,12 +557,17 @@ export function extractPersonName(text, tecnicoName = "") {
 export function extractAllPersonNames(text, tecnicoName = "") {
   if (!text) return [];
   const names = [];
-  const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "admin", "fnde"];
+  const techKeywords = [
+    "cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", 
+    "técnico", "tecnico", "admin", "fnde", "centro colaborador", "apoio ao transporte",
+    "fundo nacional", "terceira capacitação", "primeira capacitação", "segunda capacitação",
+    "evento local", "período evento", "programa sete", "não houve", "município", "prefeitura"
+  ];
   if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
 
-  // 1. Apresentações explícitas
+  // 1. Apresentações explícitas (ex: "Meu nome é Neide", "Sou a Maria")
   const introMatches = text.matchAll(/(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})/gi);
-  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "go", "goiás"];
+  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "go", "goiás", "trabalho", "na", "prefeitura"];
   for (const m of introMatches) {
     if (m[1]) {
       const rawWords = m[1].trim().split(/\s+/);
@@ -566,7 +577,9 @@ export function extractAllPersonNames(text, tecnicoName = "") {
         cleanWords.push(w);
       }
       const cleanName = cleanWords.join(' ').trim();
-      if (cleanName.length > 2) names.push(toTitleCase(cleanName));
+      if (cleanName.length > 2 && !techKeywords.some(tk => cleanName.toLowerCase().includes(tk))) {
+        names.push(toTitleCase(cleanName));
+      }
     }
   }
 
@@ -578,18 +591,6 @@ export function extractAllPersonNames(text, tecnicoName = "") {
     const isTech = techKeywords.some(tk => clean.toLowerCase().includes(tk));
     if (!isPhone && !isTech && clean.length > 2 && clean.length < 40) {
       names.push(toTitleCase(clean));
-    }
-  }
-
-  // 3. Nomes próprios maiúsculos soltos
-  const patternCapitalized = /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}\s+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}|\b(?:de|da|do|dos|das)\b\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}))\b/g;
-  const capMatches = text.matchAll(patternCapitalized);
-  const noise = ["cecate co", "fnde gov", "transporte escolar", "prefeitura municipal", "educacao go", "caminho da", "caminho de", "dia de", "boa tarde", "bom dia", "boa noite", "whats app", "centro apoio", "centro colaborador", "municipio acreuna"];
-  
-  for (const cm of capMatches) {
-    const candidate = cm[1].trim();
-    if (!noise.some(n => candidate.toLowerCase().includes(n))) {
-      names.push(toTitleCase(candidate));
     }
   }
 
@@ -741,19 +742,28 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
   const lines = combinedText.split('\n').map(l => l.trim()).filter(Boolean);
   const meaningfulLines = lines.filter(l => !ignorePhrases.some(ign => l.toLowerCase().includes(ign)));
 
-  // 8. Resumo da Demanda
+  // 8. Resumo da Demanda inteligente
   let resumoDemanda = "";
-  if (meaningfulLines.length > 0) {
+  const lowerText = combinedText.toLowerCase();
+
+  if (lowerText.includes("acesso") || lowerText.includes("conta gov") || lowerText.includes("gov.br")) {
+    resumoDemanda = `Orientação sobre acesso ao sistema ${assunto} via conta Gov.br pessoal`;
+  }
+  if (lowerText.includes("formação") || lowerText.includes("capacitação") || lowerText.includes("curso")) {
+    resumoDemanda += (resumoDemanda ? " e consulta sobre calendário de capacitações." : `Consulta sobre capacitações do transporte escolar em ${municipio}.`);
+  }
+  if (lowerText.includes("habilita") || lowerText.includes("atualização")) {
+    resumoDemanda += (resumoDemanda ? " Orientado sobre atualização no Habilita FNDE." : " Orientação sobre atualização cadastral no Habilita FNDE.");
+  }
+
+  if (!resumoDemanda) {
     const topicLine = meaningfulLines.find(l => /dúvida|duvida|prestação|prestacao|adesão|adesao|cadastro|rota|ônibus|sistema|acesso|regularização/i.test(l));
     if (topicLine) {
-      resumoDemanda = topicLine.replace(/^\[.*?\]\s*/, '').replace(/^.*?:/, '').trim().slice(0, 90);
-    } else {
-      const cleanFirst = meaningfulLines[0].replace(/^\[.*?\]\s*/, '').replace(/^.*?:/, '').trim();
-      resumoDemanda = cleanFirst.slice(0, 90);
+      resumoDemanda = topicLine.replace(/^\[.*?\]\s*/, '').replace(/^.*?:\s*/, '').trim().slice(0, 120);
     }
   }
   if (!resumoDemanda) {
-    resumoDemanda = `Atendimento e suporte sobre ${assunto} do município de ${municipio}`;
+    resumoDemanda = `Atendimento técnico sobre o programa ${assunto} no município de ${municipio} - ${uf}.`;
   }
 
   // 9. Observações
