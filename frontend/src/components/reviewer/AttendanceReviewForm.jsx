@@ -334,31 +334,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
 
 
-  // Regenerar Resumo com IA
-  const handleRegenerateResumo = async (customInstruction = '') => {
-    setLoadingResumo(true);
-    setFormError(null);
-    try {
-      const res = await regenerateAIField({
-        fieldName: 'resumo_demanda',
-        currentValue: formData.resumo_demanda,
-        rawChatText: rawChatText || formData.observacoes,
-        userInstruction: customInstruction || promptResumoText,
-        assunto: formData.assunto,
-        idToken
-      });
-      if (res.success && res.generated_text) {
-        setFormData(prev => ({ ...prev, resumo_demanda: res.generated_text }));
-        setShowPromptResumo(false);
-        setPromptResumoText('');
-      }
-    } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar resumo com IA.');
-    } finally {
-      setLoadingResumo(false);
-    }
-  };
-
   // Gerar Lista de Opções de Resumo por IA Gemini
   const handleGenerateResumoOptions = async () => {
     setLoadingResumoOptions(true);
@@ -398,31 +373,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
       setFormError(err.response?.data?.detail || 'Erro ao gerar opções de observações com IA.');
     } finally {
       setLoadingObsOptions(false);
-    }
-  };
-
-  // Regenerar Observações com IA
-  const handleRegenerateObs = async (customInstruction = '') => {
-    setLoadingObs(true);
-    setFormError(null);
-    try {
-      const res = await regenerateAIField({
-        fieldName: 'observacoes',
-        currentValue: formData.observacoes,
-        rawChatText: rawChatText || formData.observacoes,
-        userInstruction: customInstruction || promptObsText,
-        assunto: formData.assunto,
-        idToken
-      });
-      if (res.success && res.generated_text) {
-        setFormData(prev => ({ ...prev, observacoes: res.generated_text }));
-        setShowPromptObs(false);
-        setPromptObsText('');
-      }
-    } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar observações.');
-    } finally {
-      setLoadingObs(false);
     }
   };
 
@@ -656,42 +606,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
             <div style={{ marginBottom: '6px' }}>
               <label style={{ margin: 0, fontWeight: 700 }}>Resumo da Demanda:</label>
             </div>
-
-
-            {/* Barra de Comando para Refinamento (Resumo) */}
-            {showPromptResumo && (
-              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  style={{ background: '#FFF', fontSize: '0.85rem' }}
-                  placeholder="Digite a instrução para ajustar o texto (ex: Deixar mais curto, focar na dúvida do SETE...)"
-                  value={promptResumoText}
-                  onChange={(e) => setPromptResumoText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleRegenerateResumo();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ padding: '8px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap', background: '#047857' }}
-                  disabled={loadingResumo}
-                  onClick={() => handleRegenerateResumo()}
-                >
-                  {loadingResumo ? (
-                    <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                  ) : (
-                    <>
-                      <RotateCw size={14} /> Aplicar Refinamento
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
 
             <input
               type="text"
