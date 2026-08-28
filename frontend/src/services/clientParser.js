@@ -391,46 +391,68 @@ export function extractLocationFromText(text) {
   let municipio = "Acreúna";
   if (!text) return { municipio, uf };
 
-  const textLower = text.toLowerCase();
+  const textClean = text.replace(/[\r\n]+/g, ' ');
 
-  // 1. Busca inteligente com prioridade no banco de dados IBGE oficial de 5.570 municípios (municipios.json)
+  // 1. REGEX DE ALTA PRECISÃO PARA [Cidade com Múltiplas Palavras] / [UF ou Estado Por Extenso]
+  // Suporta nomes compostos longos (ex: "Santo Antônio de Posse/SP", "São José dos Campos - SP", "Cabo de Santo Agostinho / PE")
+  const estadosPattern = Object.keys(MAPA_ESTADOS_POR_EXTENSO).sort((a, b) => b.length - a.length).join('|');
+  const regexExplicitMuniUf = new RegExp(
+    `(?:município|munícipio|cidade|prefeitura)?\\s*(?:de\\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\\s+(?:de|da|do|dos|das|d'|e|[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)){0,5})\\s*(?:\\/|-|,|\\s)\\s*\\b(${estadosPattern})\\b`,
+    'i'
+  );
+
+  const matchExplicit = textClean.match(regexExplicitMuniUf);
+  if (matchExplicit) {
+    const rawMuni = matchExplicit[1].trim();
+    const rawState = matchExplicit[2].trim().toUpperCase();
+    const noise = ["município", "munícipio", "cidade", "prefeitura", "do", "da", "de", "sobre", "informe", "débitos"];
+
+    if (!noise.includes(rawMuni.toLowerCase()) && rawMuni.length >= 3) {
+      const muniClean = toTitleCase(rawMuni);
+      const stateSigla = MAPA_ESTADOS_POR_EXTENSO[rawState] || MAPA_ESTADOS_POR_EXTENSO[normalizeText(rawState)] || "GO";
+
+      // Verifica se a cidade limpa existe no banco IBGE daquele estado
+      const citiesInState = municipiosData[stateSigla] || [];
+      const exactMatch = citiesInState.find(c => c.toLowerCase() === muniClean.toLowerCase() || normalizeText(c) === normalizeText(muniClean));
+      if (exactMatch) {
+        return { municipio: exactMatch, uf: stateSigla };
+      }
+
+      return { municipio: muniClean, uf: stateSigla };
+    }
+  }
+
+  // 2. VARREDURA POR CIDADE NO BANCO IBGE (5.570 CIDADES) ORDENADAS DA MAIOR PARA A MENOR
+  // Ordenar por tamanho decrescente garante que "Santo Antônio de Posse" seja testado antes de "Posse"
+  const allCitiesOrdered = [];
   for (const [stateSigla, cities] of Object.entries(municipiosData)) {
     for (const city of cities) {
-      if (city.length >= 4) {
-        const cityLower = city.toLowerCase();
-        const regexCity = new RegExp(`\\b${cityLower.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}\\b`, 'i');
-        if (regexCity.test(textLower)) {
-          return { municipio: city, uf: stateSigla };
-        }
+      allCitiesOrdered.push({ name: city, uf: stateSigla, len: city.length });
+    }
+  }
+  allCitiesOrdered.sort((a, b) => b.len - a.len);
+
+  const textLower = textClean.toLowerCase();
+  for (const item of allCitiesOrdered) {
+    if (item.len >= 4) {
+      const cityLower = item.name.toLowerCase();
+      const regexCity = new RegExp(`\\b${cityLower.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}\\b`, 'i');
+      if (regexCity.test(textLower)) {
+        return { municipio: item.name, uf: item.uf };
       }
     }
   }
 
-  // 2. Procura por padrão Cidade / UF (ex: Acreúna - GO, Acreúna / Goiás, Cidade de Acreúna GO)
-  const estadosPattern = Object.keys(MAPA_ESTADOS_POR_EXTENSO).sort((a, b) => b.length - a.length).join('|');
-  const regexMuniUf = new RegExp(`(?:município|munícipio|cidade|prefeitura)?\\s*(?:de\\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)\\s*(?:\\/|-|,|\\s)\\s*\\b(${estadosPattern})\\b`, 'i');
-  
-  const match = text.match(regexMuniUf);
-  if (match) {
-    const rawMuni = match[1].trim();
-    const rawState = match[2].trim().toUpperCase();
-    const noise = ["município", "munícipio", "cidade", "prefeitura", "do", "da", "de", "sobre", "informe", "débitos"];
-    if (!noise.includes(rawMuni.toLowerCase())) {
-      municipio = toTitleCase(rawMuni);
-      uf = MAPA_ESTADOS_POR_EXTENSO[rawState] || MAPA_ESTADOS_POR_EXTENSO[normalizeText(rawState)] || "GO";
-      return { municipio, uf };
-    }
-  }
-
-  // 3. Busca por qualquer estado por extenso solto
+  // 3. BUSCA SECUNDÁRIA DE ESTADO POR EXTENSO
   for (const [extenso, sigla] of Object.entries(MAPA_ESTADOS_POR_EXTENSO)) {
     if (extenso.length > 2) {
-      const regexStateOnly = new RegExp(`([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})?)\\s+(?:\\/|-|,|\\s)*\\b${extenso}\\b`, 'i');
-      const mState = text.match(regexStateOnly);
+      const regexStateOnly = new RegExp(`([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}(?:\\s+(?:de|da|do|dos|das|d'|e|[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})){0,4})\\s+(?:\\/|-|,|\\s)*\\b${extenso}\\b`, 'i');
+      const mState = textClean.match(regexStateOnly);
       if (mState && !["município", "cidade", "prefeitura"].includes(mState[1].toLowerCase())) {
-        municipio = toTitleCase(mState[1].trim());
-        uf = sigla;
-        return { municipio, uf };
+        const rawMuni = mState[1].trim();
+        const citiesInState = municipiosData[sigla] || [];
+        const exactMatch = citiesInState.find(c => c.toLowerCase() === rawMuni.toLowerCase() || normalizeText(c) === normalizeText(rawMuni));
+        return { municipio: exactMatch || toTitleCase(rawMuni), uf: sigla };
       }
     }
   }
