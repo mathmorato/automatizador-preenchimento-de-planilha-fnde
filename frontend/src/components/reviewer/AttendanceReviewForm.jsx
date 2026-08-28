@@ -87,7 +87,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     const rowVal = rowToVerify || targetRow;
     const candidateRow = parseInt(rowVal, 10);
     if (!candidateRow || candidateRow < 1) {
-      setFormError('Informe um número de linha válido (ex: 580).');
+      setFormError('[ERRO DE FORMULÁRIO / DADOS] Informe um número de linha válido (ex: 580).');
       return;
     }
 
@@ -104,12 +104,12 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
         if (!res.is_empty) {
           const previewText = res.preview?.filter(Boolean).slice(0, 3).join(' • ');
-          setFormError(`A Linha ${candidateRow} JÁ CONTÉM DADOS (${previewText || 'Linha ocupada'}). Clique em 'Auto-Buscar Linha Livre' para encontrar uma linha vazia sozinho.`);
+          setFormError(`[CONFLITO DE PLANILHA] A Linha ${candidateRow} JÁ CONTÉM DADOS (${previewText || 'Linha ocupada'}). Clique em 'Auto-Buscar Linha Livre' para encontrar uma linha livre.`);
         }
       }
     } catch (err) {
       console.warn("Erro ao verificar linha:", err);
-      setFormError('Erro ao verificar disponibilidade da linha na planilha.');
+      setFormError('[ERRO DA PLANILHA GOOGLE] Não foi possível verificar a disponibilidade da linha na planilha.');
     } finally {
       setCheckingRow(false);
     }
@@ -158,11 +158,11 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           target_row: candidateRow,
           is_empty: false
         });
-        setFormError(`Verificamos até a linha ${candidateRow} e não encontramos linhas vazias.`);
+        setFormError(`[CONFLITO DE PLANILHA] Verificamos até a linha ${candidateRow} e não encontramos linhas vazias.`);
       }
     } catch (err) {
       console.warn("Erro ao buscar linha livre automaticamente:", err);
-      setFormError('Erro ao consultar disponibilidade na planilha.');
+      setFormError('[ERRO DA PLANILHA GOOGLE] Falha ao consultar disponibilidade de linhas na planilha.');
     } finally {
       setCheckingRow(false);
     }
@@ -326,7 +326,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         setFormData(prev => ({ ...prev, atendido_nome: properNames[0] }));
       }
     } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar nomes com IA.');
+      setFormError('[ERRO DA IA GEMINI] ' + (err.response?.data?.detail || 'Erro ao extrair nomes de pessoas com a IA.'));
     } finally {
       setLoadingNome(false);
     }
@@ -349,7 +349,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         setResumoOptions(res.options);
       }
     } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao gerar opções de resumo com IA.');
+      setFormError('[ERRO DA IA GEMINI] ' + (err.response?.data?.detail || 'Erro ao gerar opções de resumo da demanda com a IA.'));
     } finally {
       setLoadingResumoOptions(false);
     }
@@ -370,7 +370,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         setObsOptions(res.options);
       }
     } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao gerar opções de observações com IA.');
+      setFormError('[ERRO DA IA GEMINI] ' + (err.response?.data?.detail || 'Erro ao gerar opções de observações com a IA.'));
     } finally {
       setLoadingObsOptions(false);
     }
@@ -433,10 +433,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
     // CONFERÊNCIA OBRIGATÓRIA DE TODOS OS CAMPOS
     const { errors, missingKeys } = validateAllFormFields();
-    if (errors.length > 0) {
+    if (missingKeys.length > 0) {
       setMissingFieldKeys(missingKeys);
       setFormError(
-        `CONFERÊNCIA PENDENTE: Por favor, preencha as seguintes informações obrigatórias antes de gravar na planilha:\n• ${errors.join('\n• ')}`
+        `[ERRO DE FORMULÁRIO / PREENCHIMENTO] Por favor, preencha os campos obrigatórios em vermelho (${missingKeys.join(', ')}).`
       );
 
       const panelCard = document.querySelector('.panel-card');
@@ -447,7 +447,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     }
 
     if (rowStatus && !rowStatus.is_empty) {
-      setFormError(`BLOQUEIO DE SEGURANÇA: A Linha ${targetRow} já contém dados na planilha. Clique em 'Auto-Buscar Linha Livre' para encontrar uma linha vazia.`);
+      setFormError(`[BLOQUEIO DE SEGURANÇA] A Linha ${targetRow} já contém dados na planilha. Clique em 'Auto-Buscar Linha Livre' para selecionar uma linha vazia.`);
       return;
     }
 
@@ -455,7 +455,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     try {
       await onSubmitToSheets(formData, targetRow);
     } catch (err) {
-      setFormError(err.response?.data?.detail || err.message || 'Erro ao salvar na planilha.');
+      setFormError('[ERRO DE GRAVAÇÃO NA PLANILHA] ' + (err.response?.data?.detail || err.message || 'Erro ao gravar dados na planilha.'));
     } finally {
       setSubmitting(false);
     }
@@ -471,9 +471,14 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
       </p>
 
       {formError && (
-        <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}>
-          <AlertTriangle size={20} />
-          <span>{formError}</span>
+        <div className="alert alert-error" style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '4px solid #DC2626' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '0.88rem' }}>
+            <AlertTriangle size={18} color="#DC2626" />
+            <span>⚠️ TIPO DE ERRO DETECTADO PELO SISTEMA</span>
+          </div>
+          <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', padding: '10px 14px', borderRadius: '8px', color: '#9B1C1C', fontSize: '0.85rem', fontWeight: 700, lineHeight: '1.4' }}>
+            {formError}
+          </div>
         </div>
       )}
 
