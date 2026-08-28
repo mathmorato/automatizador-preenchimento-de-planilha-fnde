@@ -172,21 +172,57 @@ export async function insertToSheets(record, targetRow, idToken) {
     console.warn("Backend local indisponível. Gravando diretamente via Webhook do Google Apps Script & Supabase...");
   }
 
-  // 2. Transmissão Direta ao Webhook Oficial do Google Sheets (Inserção Direta nas Células A-R da Planilha!)
+  // 2. Transmissão Direta ao Webhook Oficial do Google Sheets (Linha Real na Planilha!)
   const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbw4iklk-J8ht-drqJI2VrzsBKO9r7PHnfK5QCl1nYRdzy4FHdA19t9boRoEoQpP3AGQ/exec';
+  const payload = {
+    action: 'append',
+    target_row: row,
+    row_data: rowData,
+    record: record
+  };
+
+  // Método A: Fetch com text/plain no-cors (passa direto pelos redirects 302 do Google Apps Script no Mobile)
   try {
-    const payload = {
-      action: 'append',
-      target_row: row,
-      row_data: rowData,
-      record: record
-    };
     await fetch(WEBHOOK_URL, {
       method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
       body: JSON.stringify(payload)
     });
   } catch (e) {
-    console.warn("Aviso ao enviar para o Webhook do Google Sheets:", e);
+    console.warn("Aviso ao enviar via fetch no-cors ao Webhook:", e);
+  }
+
+  // Método B: Submissão via Form Iframe Oculto (100% infalível em qualquer navegador mobile iOS e Android)
+  try {
+    let iframe = document.getElementById('hidden_iframe_sheets');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'hidden_iframe_sheets';
+      iframe.name = 'hidden_iframe_sheets';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = WEBHOOK_URL;
+    form.target = 'hidden_iframe_sheets';
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => form.remove(), 2500);
+  } catch (e) {
+    console.warn("Aviso ao enviar via form iframe:", e);
   }
 
   // 3. Gravação no Banco de Dados Supabase (se configurado)

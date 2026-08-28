@@ -180,12 +180,53 @@ export function parseCSVToRows(text) {
   return rows;
 }
 
-export async function fetchLiveNextRow() {
+export async function fetchSheetCSVText() {
+  const t = Date.now();
+  const directUrl = `${LIVE_SHEET_CSV_URL}&t=${t}`;
+  
+  // Tentativa 1: Fetch Direto
   try {
-    const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
+    const resp = await fetch(directUrl, { cache: 'no-store', redirect: 'follow' });
     if (resp.ok) {
       const text = await resp.text();
-      const rows = parseCSVToRows(text);
+      if (text && text.length > 50) return text;
+    }
+  } catch (e) {
+    console.warn("Fetch direto do CSV falhou no mobile, tentando proxy corsproxy.io:", e);
+  }
+
+  // Tentativa 2: Fallback via CORS Proxy no Mobile
+  try {
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(directUrl)}`;
+    const respProxy = await fetch(proxyUrl, { cache: 'no-store' });
+    if (respProxy.ok) {
+      const text = await respProxy.text();
+      if (text && text.length > 50) return text;
+    }
+  } catch (e) {
+    console.warn("Proxy corsproxy.io falhou, tentando allorigins:", e);
+  }
+
+  // Tentativa 3: Fallback via AllOrigins Proxy
+  try {
+    const proxyUrl2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`;
+    const respProxy2 = await fetch(proxyUrl2, { cache: 'no-store' });
+    if (respProxy2.ok) {
+      const text = await respProxy2.text();
+      if (text && text.length > 50) return text;
+    }
+  } catch (e) {
+    console.warn("Proxy AllOrigins falhou:", e);
+  }
+
+  return null;
+}
+
+export async function fetchLiveNextRow() {
+  try {
+    const csvText = await fetchSheetCSVText();
+    if (csvText) {
+      const rows = parseCSVToRows(csvText);
       if (rows.length > 0) {
         cachedNextRow = rows.length + 1;
         return cachedNextRow;
@@ -666,9 +707,8 @@ export function regenerateFieldClientSide({ fieldName, currentValue, rawChatText
 
 export async function checkRowStatusClientSide(targetRow) {
   try {
-    const resp = await fetch(`${LIVE_SHEET_CSV_URL}&t=${Date.now()}`, { cache: 'no-store' });
-    if (resp.ok) {
-      const csvText = await resp.text();
+    const csvText = await fetchSheetCSVText();
+    if (csvText) {
       const rows = parseCSVToRows(csvText);
       if (targetRow > 0 && targetRow <= rows.length) {
         const rowCells = rows[targetRow - 1] || [];
