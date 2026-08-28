@@ -4,12 +4,73 @@ import { createWorker } from 'tesseract.js';
 const TRAINING_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CAZBdzN_Wz_z-XM1vrhKTtCcE3PNuTSd8QW9b5cC3Pk/export?format=csv&gid=943666845";
 const LIVE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1lQyVlaZOyem8F7SaaeRSpgx1JOTQVRzg7XawseG3TgQ/export?format=csv&gid=1401168846";
 
+let ocrWorkerPromise = null;
+
+export function resizeImageForOCR(file, maxWidth = 1200) {
+  return new Promise((resolve) => {
+    if (!file || typeof file === 'string' || !file.type?.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxWidth && img.height <= maxWidth) {
+          resolve(e.target.result);
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function getOCRWorker() {
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = (async () => {
+      try {
+        const worker = await createWorker(['por', 'eng']);
+        return worker;
+      } catch (e) {
+        console.warn("Aviso ao inicializar worker do OCR:", e);
+        ocrWorkerPromise = null;
+        return null;
+      }
+    })();
+  }
+  return ocrWorkerPromise;
+}
+
 export async function performOCR(imageFileOrUrl) {
   try {
-    const worker = await createWorker(['por', 'eng']);
-    const ret = await worker.recognize(imageFileOrUrl);
-    await worker.terminate();
-    return ret.data.text || "";
+    const resizedData = await resizeImageForOCR(imageFileOrUrl, 1200);
+    const worker = await getOCRWorker();
+    if (!worker) return "";
+    const ret = await worker.recognize(resizedData);
+    return ret.data?.text || "";
   } catch (e) {
     console.warn("Aviso ao realizar OCR com Tesseract.js (PT+EN):", e);
     return "";
