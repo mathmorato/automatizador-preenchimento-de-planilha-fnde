@@ -124,8 +124,32 @@ export async function parseChatOrScreenshots({ files, textContent, tecnicoName, 
   }
 }
 
+export function recordToSheetRow(record) {
+  return [
+    record.cecate_responsavel || 'CECATE CO',
+    record.iniciativa || 'Município',
+    record.tecnico || 'Matheus Morato',
+    record.meio_contato || 'Whats App',
+    record.data_atendimento || new Date().toLocaleDateString('pt-BR'),
+    record.assunto || 'SETE',
+    record.resumo_demanda || '',
+    record.uf || 'GO',
+    record.municipio || '',
+    record.capacitacao_participou || 'Não',
+    record.capacitacao_local || '',
+    record.capacitacao_data || '',
+    record.atendido_nome || '',
+    record.atendido_telefone || '',
+    record.atendido_cargo || 'Gestor',
+    record.municipio_respondeu || 'Sim',
+    record.situacao || 'Resolvida',
+    record.observacoes || ''
+  ];
+}
+
 export async function insertToSheets(record, targetRow, idToken) {
   const row = targetRow ? parseInt(targetRow, 10) : 580;
+  const rowData = recordToSheetRow(record);
   
   // 1. Tenta salvar via servidor backend (se estiver rodando)
   try {
@@ -148,18 +172,18 @@ export async function insertToSheets(record, targetRow, idToken) {
     console.warn("Backend local indisponível. Gravando diretamente via Webhook do Google Apps Script & Supabase...");
   }
 
-  // 2. Transmissão Direta ao Webhook Oficial do Google Sheets (Linha Real na Planilha!)
+  // 2. Transmissão Direta ao Webhook Oficial do Google Sheets (Inserção Direta nas Células A-R da Planilha!)
   const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbw4iklk-J8ht-drqJI2VrzsBKO9r7PHnfK5QCl1nYRdzy4FHdA19t9boRoEoQpP3AGQ/exec';
   try {
+    const payload = {
+      action: 'append',
+      target_row: row,
+      row_data: rowData,
+      record: record
+    };
     await fetch(WEBHOOK_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'append',
-        target_row: row,
-        record: record
-      })
+      body: JSON.stringify(payload)
     });
   } catch (e) {
     console.warn("Aviso ao enviar para o Webhook do Google Sheets:", e);
