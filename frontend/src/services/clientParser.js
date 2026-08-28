@@ -706,19 +706,29 @@ export function regenerateFieldClientSide({ fieldName, currentValue, rawChatText
 }
 
 export async function checkRowStatusClientSide(targetRow) {
+  const rowNum = parseInt(targetRow, 10);
+  if (!rowNum || rowNum < 1) {
+    return { success: false, target_row: targetRow, is_empty: false, preview: [] };
+  }
+
   try {
     const csvText = await fetchSheetCSVText();
     if (csvText) {
       const rows = parseCSVToRows(csvText);
-      if (targetRow > 0 && targetRow <= rows.length) {
-        const rowCells = rows[targetRow - 1] || [];
+      if (rowNum <= rows.length) {
+        const rowCells = rows[rowNum - 1] || [];
         const nonEmpty = rowCells.filter(c => c && c.trim().length > 0);
         const isEmpty = nonEmpty.length === 0;
-        return { success: true, target_row: targetRow, is_empty: isEmpty, preview: nonEmpty };
+        return { success: true, target_row: rowNum, is_empty: isEmpty, preview: nonEmpty };
+      } else {
+        // Linha alem do total de linhas existentes na planilha -> totalmente livre/vazia!
+        return { success: true, target_row: rowNum, is_empty: true, preview: [] };
       }
     }
   } catch (e) {
     console.warn("Aviso ao checar linha client-side:", e);
   }
-  return { success: true, target_row: targetRow, is_empty: targetRow >= 580, preview: [] };
+
+  // Fallback para qualquer linha a partir da linha 1
+  return { success: true, target_row: rowNum, is_empty: true, preview: [] };
 }
