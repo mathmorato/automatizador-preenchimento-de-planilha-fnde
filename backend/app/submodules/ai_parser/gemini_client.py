@@ -266,6 +266,65 @@ Retorne apenas o JSON:"""
     ]
 
 
+def generate_obs_options_with_gemini(raw_chat_text: str, assunto: str = "SETE", current_value: str = "") -> List[str]:
+    """
+    Gera de 3 a 4 opções técnicas detalhadas de Observações e Encaminhamentos para o atendente escolher.
+    """
+    chat_snippet = (raw_chat_text or "")[:8000]
+    
+    prompt = f"""Você é um especialista em relatórios de atendimento do FNDE / CECATE CO.
+Sua missão é RELER A CONVERSA DO ATENDIMENTO e o Assunto ({assunto}) e gerar 3 a 4 OPÇÕES DISTINTAS, DETALHADAS E PROFISSIONAIS de "Observações e Encaminhamentos" no padrão oficial do CECATE CO FNDE.
+
+--- CONVERSA DO ATENDIMENTO ---
+{chat_snippet}
+--- FIM DA CONVERSA ---
+
+[TEXTO ATUAL / BASE]: "{current_value}"
+
+REGRAS OBRIGATÓRIAS:
+1. As opções devem descrever detalhadamente o suporte prestado, a orientação dada e os encaminhamentos finais (ex: "Orientado sobre acesso ao sistema SETE via conta Gov.br pessoal. Informado sobre os procedimentos de suporte técnico e atualização no Habilita FNDE.").
+2. Crie variações formais no padrão técnico dos relatórios da planilha oficial do CECATE CO FNDE.
+3. Retorne EXCLUSIVAMENTE um array JSON contendo as opções em texto. Exemplo: ["Opção 1...", "Opção 2...", "Opção 3..."].
+
+Retorne apenas o JSON:"""
+
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+    if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip() != "":
+        try:
+            from google import genai
+            client = genai.Client(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    if response and response.text:
+                        raw = response.text.strip()
+                        if raw.startswith("```"):
+                            raw = re.sub(r'^```(?:json)?\s*', '', raw)
+                            raw = re.sub(r'\s*```$', '', raw)
+                        import json
+                        arr = json.loads(raw.strip())
+                        if isinstance(arr, list) and len(arr) > 0:
+                            clean = [str(opt).strip() for opt in arr if str(opt).strip()]
+                            if len(clean) >= 2:
+                                return clean
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    base = current_value or f"Atendimento realizado quanto às orientações do programa {assunto}."
+    return [
+        f"{base} Usuário orientado sobre os procedimentos técnicos e normativos do FNDE.",
+        f"Prestado suporte técnico referente ao {assunto}. Realizados encaminhamentos e orientações operacionais necessárias.",
+        f"Esclarecimento de dúvidas municipais sobre a utilização do {assunto}. Encaminhadas instruções oficiais para regularização.",
+        f"Orientado quanto ao acesso e utilização das ferramentas do {assunto}. Atendimento finalizado com sucesso."
+    ]
+
+
+
 
 
 def extract_all_dates_from_chat(text: str) -> List[str]:

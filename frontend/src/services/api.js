@@ -110,6 +110,33 @@ export async function fetchResumoOptions({ rawChatText, assunto, currentValue, i
   }
 }
 
+export async function fetchObsOptions({ rawChatText, assunto, currentValue, idToken }) {
+  try {
+    const response = await axios.post(
+      `${API_BASE}/ai/obs-options`,
+      {
+        raw_chat_text: rawChatText || '',
+        assunto: assunto || 'SETE',
+        current_value: currentValue || '',
+      },
+      { headers: { Authorization: `Bearer ${idToken}` }, timeout: 10000 }
+    );
+    return response.data;
+  } catch (err) {
+    const base = currentValue || `Atendimento realizado referente ao programa ${assunto || 'SETE'}.`;
+    return {
+      success: true,
+      options: [
+        `${base} Usuário orientado sobre os procedimentos técnicos e normativos do FNDE.`,
+        `Prestado suporte técnico referente ao ${assunto || 'SETE'}. Realizados encaminhamentos e orientações operacionais necessárias.`,
+        `Esclarecimento de dúvidas municipais sobre a utilização do ${assunto || 'SETE'}. Encaminhadas instruções oficiais para regularização.`,
+        `Orientado quanto ao acesso e utilização das ferramentas do ${assunto || 'SETE'}. Atendimento finalizado com sucesso.`
+      ]
+    };
+  }
+}
+
+
 
 export async function verifyGoogleToken(token) {
   try {

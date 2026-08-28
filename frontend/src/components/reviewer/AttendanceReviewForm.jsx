@@ -34,6 +34,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     municipio_respondeu: toStr(initialData?.municipio_respondeu, 'Sim'),
     situacao: toStr(initialData?.situacao, 'Resolvida'),
     observacoes: toStr(initialData?.observacoes, '')
+
   });
 
   // Linha Alvo, Edição Manual e Status
@@ -73,16 +74,11 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   const [promptLocationText, setPromptLocationText] = useState('');
   const [loadingLocation, setLoadingLocation] = useState(false);
 
-  const [showPromptResumo, setShowPromptResumo] = useState(false);
-  const [promptResumoText, setPromptResumoText] = useState('');
-  const [loadingResumo, setLoadingResumo] = useState(false);
   const [resumoOptions, setResumoOptions] = useState([]);
   const [loadingResumoOptions, setLoadingResumoOptions] = useState(false);
 
-
-  const [showPromptObs, setShowPromptObs] = useState(false);
-  const [promptObsText, setPromptObsText] = useState('');
-  const [loadingObs, setLoadingObs] = useState(false);
+  const [obsOptions, setObsOptions] = useState([]);
+  const [loadingObsOptions, setLoadingObsOptions] = useState(false);
 
   const [loadingNome, setLoadingNome] = useState(false);
 
@@ -384,6 +380,26 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     }
   };
 
+  // Gerar Lista de Opções de Observações e Encaminhamentos por IA Gemini
+  const handleGenerateObsOptions = async () => {
+    setLoadingObsOptions(true);
+    setFormError(null);
+    try {
+      const res = await fetchObsOptions({
+        rawChatText: rawChatText || formData.observacoes,
+        assunto: formData.assunto,
+        currentValue: formData.observacoes,
+        idToken
+      });
+      if (res.success && res.options && res.options.length > 0) {
+        setObsOptions(res.options);
+      }
+    } catch (err) {
+      setFormError(err.response?.data?.detail || 'Erro ao gerar opções de observações com IA.');
+    } finally {
+      setLoadingObsOptions(false);
+    }
+  };
 
   // Regenerar Observações com IA
   const handleRegenerateObs = async (customInstruction = '') => {
@@ -637,61 +653,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           </div>
 
           <div className="form-group full-width">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ marginBottom: '6px' }}>
               <label style={{ margin: 0, fontWeight: 700 }}>Resumo da Demanda:</label>
-
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{ 
-                    border: 'none', 
-                    background: '#EBF5FF', 
-                    color: '#0066B3', 
-                    fontSize: '0.78rem', 
-                    fontWeight: 700,
-                    padding: '4px 10px', 
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  disabled={loadingResumo}
-                  onClick={() => handleRegenerateResumo('')}
-                >
-                  {loadingResumo ? (
-                    <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
-                  ) : (
-                    <>
-                      <RotateCw size={13} color="#0066B3" /> Reler Conversa
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{ 
-                    border: 'none', 
-                    background: '#F0FDF4', 
-                    color: '#047857', 
-                    fontSize: '0.78rem', 
-                    fontWeight: 700,
-                    padding: '4px 10px', 
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  onClick={() => setShowPromptResumo(!showPromptResumo)}
-                >
-                  <Edit3 size={13} color="#047857" />
-                  {showPromptResumo ? 'Fechar' : 'Instruir Refinamento'}
-                </button>
-              </div>
             </div>
+
 
             {/* Barra de Comando para Refinamento (Resumo) */}
             {showPromptResumo && (
@@ -1254,96 +1219,9 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           </div>
 
           <div className="form-group full-width" style={{ marginBottom: '1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ marginBottom: '6px' }}>
               <label style={{ margin: 0, fontWeight: 700 }}>Observações e Encaminhamentos:</label>
-
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{ 
-                    border: 'none', 
-                    background: '#EBF5FF', 
-                    color: '#0066B3', 
-                    fontSize: '0.78rem', 
-                    fontWeight: 700,
-                    padding: '4px 10px', 
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  disabled={loadingObs}
-                  onClick={() => handleRegenerateObs('')}
-                >
-                  {loadingObs ? (
-                    <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
-                  ) : (
-                    <>
-                      <RotateCw size={13} color="#0066B3" /> Reler Conversa
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-outline"
-                  style={{ 
-                    border: 'none', 
-                    background: '#F0FDF4', 
-                    color: '#047857', 
-                    fontSize: '0.78rem', 
-                    fontWeight: 700,
-                    padding: '4px 10px', 
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  onClick={() => setShowPromptObs(!showPromptObs)}
-                >
-                  <Edit3 size={13} color="#047857" />
-                  {showPromptObs ? 'Fechar' : 'Instruir Refinamento'}
-                </button>
-              </div>
             </div>
-
-            {/* Barra de Comando para Refinamento (Observações) */}
-            {showPromptObs && (
-              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  style={{ background: '#FFF', fontSize: '0.85rem' }}
-                  placeholder="Digite a instrução para ajustar o texto (ex: Detalhar orientação, resumir tópicos, incluir pendência...)"
-                  value={promptObsText}
-                  onChange={(e) => setPromptObsText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleRegenerateObs();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ padding: '8px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap', background: '#047857' }}
-                  disabled={loadingObs}
-                  onClick={() => handleRegenerateObs()}
-                >
-                  {loadingObs ? (
-                    <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                  ) : (
-                    <>
-                      <RotateCw size={14} /> Aplicar Refinamento
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
 
             <textarea
               name="observacoes"
@@ -1351,9 +1229,93 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               rows="4"
               value={formData.observacoes}
               onChange={handleChange}
-              placeholder="Digite todos os detalhes da orientação ou pendência..."
+              placeholder="Digite todos os detalhes da orientação ou pendência (ou gere opções com a IA abaixo)..."
             />
+
+            {/* BOTÃO DA IA GEMINI PARA GERAR OPÇÕES DE OBSERVAÇÕES E ENCAMINHAMENTOS */}
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '8px',
+                width: '100%',
+                border: '1.5px solid #047857', 
+                background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', 
+                color: '#065F46', 
+                fontSize: '0.82rem', 
+                fontWeight: 800, 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(4, 120, 87, 0.12)'
+              }}
+              disabled={loadingObsOptions}
+              onClick={handleGenerateObsOptions}
+            >
+              {loadingObsOptions ? (
+                <>
+                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+                  <span>Gemini IA analisando conversa e gerando opções de observações...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} color="#047857" />
+                  <span>🤖 Gerar Opções de Observações e Encaminhamentos com IA Gemini (Preenchimento Automático)</span>
+                </>
+              )}
+            </button>
+
+            {/* OPÇÕES DE OBSERVAÇÕES GERADAS PELA IA GEMINI */}
+            {obsOptions && obsOptions.length > 0 && (
+              <div style={{ marginTop: '10px', background: '#F0FDF4', padding: '12px', borderRadius: '10px', border: '1px solid #86EFAC' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#065F46', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText size={15} color="#047857" />
+                  <span>Opções de Observações e Encaminhamentos sugeridas pela IA Gemini (clique para preencher):</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {obsOptions.map((optText, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      style={{
+                        textAlign: 'left',
+                        background: formData.observacoes === optText ? '#047857' : '#FFFFFF',
+                        color: formData.observacoes === optText ? '#FFFFFF' : '#1E293B',
+                        border: formData.observacoes === optText ? '1.5px solid #047857' : '1px solid #CBD5E1',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        lineHeight: '1.4',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onClick={() => setFormData((prev) => ({ ...prev, observacoes: optText }))}
+                    >
+                      <span>{optText}</span>
+                      {formData.observacoes === optText ? (
+                        <Check size={16} color="#FFFFFF" style={{ flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, flexShrink: 0 }}>
+                          Usar esta opção
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
         </div>
 
         {/* SEÇÃO DA LINHA DE DESTINO COM OS 3 BOTÕES SEPARADOS: 'VERIFICAR LINHA', 'AUTO-BUSCAR LINHA LIVRE' E 'DIGITAR MANUALMENTE' */}

@@ -26,8 +26,10 @@ from .submodules.ai_parser.gemini_client import (
     extract_all_person_names,
     extract_all_person_names_with_gemini,
     generate_resumo_options_with_gemini,
+    generate_obs_options_with_gemini,
     extract_all_dates_from_chat
 )
+
 
 
 from .submodules.ai_parser.zip_extractor import process_whatsapp_zip
@@ -272,6 +274,25 @@ def get_resumo_options(req: ResumoOptionsRequest, user: dict = Depends(verify_go
         return { "success": True, "options": options }
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao gerar opções de resumo: {str(e)}")
+
+
+class ObsOptionsRequest(BaseModel):
+    raw_chat_text: Optional[str] = ""
+    assunto: Optional[str] = "SETE"
+    current_value: Optional[str] = ""
+
+@app.post("/api/ai/obs-options")
+def get_obs_options(req: ObsOptionsRequest, user: dict = Depends(verify_google_token)):
+    try:
+        options = generate_obs_options_with_gemini(
+            raw_chat_text=req.raw_chat_text or "",
+            assunto=req.assunto or "SETE",
+            current_value=req.current_value or ""
+        )
+        return { "success": True, "options": options }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao gerar opções de observações: {str(e)}")
+
 
 
 @app.get("/api/sheets/next-row")

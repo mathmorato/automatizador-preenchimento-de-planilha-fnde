@@ -937,7 +937,7 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
       meio_contato: "Whats App",
       data_atendimento: dataAtendimento,
       assunto: assunto,
-      resumo_demanda: resumoDemanda,
+      resumo_demanda: "",
       uf: uf,
       municipio: municipio,
       capacitacao_participou: trainingInfo.capacitacao_participou,
@@ -948,7 +948,8 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
       atendido_cargo: atendidoCargo,
       municipio_respondeu: "Sim",
       situacao: "Resolvida",
-      observacoes: observacoes
+      observacoes: ""
+
     },
     extracted_names: names.length > 0 ? names : [atendidoNome],
     extracted_dates: dates,
