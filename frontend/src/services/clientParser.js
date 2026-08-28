@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { createWorker } from 'tesseract.js';
+import municipiosData from '../data/municipios.json';
 
 const TRAINING_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CAZBdzN_Wz_z-XM1vrhKTtCcE3PNuTSd8QW9b5cC3Pk/export?format=csv&gid=943666845";
 const LIVE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1lQyVlaZOyem8F7SaaeRSpgx1JOTQVRzg7XawseG3TgQ/export?format=csv&gid=1401168846";
@@ -387,10 +388,25 @@ export async function extractZipContent(file) {
 
 export function extractLocationFromText(text) {
   let uf = "GO";
-  let municipio = "Município Atendido";
+  let municipio = "Acreúna";
   if (!text) return { municipio, uf };
 
-  // 1. Procura por padrão Cidade / UF (ex: Acreúna - GO, Acreúna / Goiás, Cidade de Acreúna GO)
+  const textLower = text.toLowerCase();
+
+  // 1. Busca inteligente com prioridade no banco de dados IBGE oficial de 5.570 municípios (municipios.json)
+  for (const [stateSigla, cities] of Object.entries(municipiosData)) {
+    for (const city of cities) {
+      if (city.length >= 4) {
+        const cityLower = city.toLowerCase();
+        const regexCity = new RegExp(`\\b${cityLower.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}\\b`, 'i');
+        if (regexCity.test(textLower)) {
+          return { municipio: city, uf: stateSigla };
+        }
+      }
+    }
+  }
+
+  // 2. Procura por padrão Cidade / UF (ex: Acreúna - GO, Acreúna / Goiás, Cidade de Acreúna GO)
   const estadosPattern = Object.keys(MAPA_ESTADOS_POR_EXTENSO).sort((a, b) => b.length - a.length).join('|');
   const regexMuniUf = new RegExp(`(?:município|munícipio|cidade|prefeitura)?\\s*(?:de\\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?)\\s*(?:\\/|-|,|\\s)\\s*\\b(${estadosPattern})\\b`, 'i');
   
@@ -406,7 +422,7 @@ export function extractLocationFromText(text) {
     }
   }
 
-  // 2. Busca secundária por qualquer nome de estado por extenso
+  // 3. Busca por qualquer estado por extenso solto
   for (const [extenso, sigla] of Object.entries(MAPA_ESTADOS_POR_EXTENSO)) {
     if (extenso.length > 2) {
       const regexStateOnly = new RegExp(`([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}(?:\\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})?)\\s+(?:\\/|-|,|\\s)*\\b${extenso}\\b`, 'i');
@@ -420,6 +436,49 @@ export function extractLocationFromText(text) {
   }
 
   return { municipio, uf };
+}
+
+export function extractCargoFromText(text) {
+  if (!text) return "Gestor";
+  const lower = text.toLowerCase();
+  
+  // Verificação inteligente de CACs (Conselho de Acompanhamento e Controle Social)
+  const isCACs = /\bcacs\b|cacs-fundeb|cacs\/fundeb|cacs-pnae|conselheir[oas]|conselho\b|membro do cacs|presidente do cacs|fiscalizaçã|fiscalizacao/i.test(lower);
+  if (isCACs) {
+    return "CACs";
+  }
+  
+  return "Gestor";
+}
+
+export function extractDateFromText(text) {
+  if (!text) return new Date().toLocaleDateString('pt-BR');
+  
+  // 1. Formato numérico DD/MM/AAAA ou DD/MM/AA
+  const matchNum = text.match(/\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})\b/);
+  if (matchNum) {
+    let day = matchNum[1].padStart(2, '0');
+    let month = matchNum[2].padStart(2, '0');
+    let year = matchNum[3];
+    if (year.length === 2) year = `20${year}`;
+    return `${day}/${month}/${year}`;
+  }
+
+  // 2. Formato por extenso: 15 de outubro de 2025
+  const meses = {
+    janeiro: '01', fev: '02', fevereiro: '02', marco: '03', março: '03',
+    abril: '04', maio: '05', junho: '06', julho: '07', agosto: '08',
+    setembro: '09', outubro: '10', novembro: '11', dezembro: '12'
+  };
+  const matchExtenso = text.match(/\b(\d{1,2})\s+de\s+(janeiro|fevereiro|fev|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de\s+(\d{4}))?\b/i);
+  if (matchExtenso) {
+    const day = matchExtenso[1].padStart(2, '0');
+    const month = meses[matchExtenso[2].toLowerCase()];
+    const year = matchExtenso[3] || new Date().getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  return new Date().toLocaleDateString('pt-BR');
 }
 
 export function extractPersonName(text, tecnicoName = "") {
@@ -493,7 +552,7 @@ export function extractAllPersonNames(text, tecnicoName = "") {
     }
   }
 
-  // 3. Nomes próprios maiúsculos soltos (Pass 4 do Python)
+  // 3. Nomes próprios maiúsculos soltos
   const patternCapitalized = /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}\s+(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}|\b(?:de|da|do|dos|das)\b\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,}))\b/g;
   const capMatches = text.matchAll(patternCapitalized);
   const noise = ["cecate co", "fnde gov", "transporte escolar", "prefeitura municipal", "educacao go", "caminho da", "caminho de", "dia de", "boa tarde", "bom dia", "boa noite", "whats app", "centro apoio", "centro colaborador", "municipio acreuna"];
@@ -583,27 +642,25 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     }
   }
 
-  // 1. Data do atendimento
-  const todayStr = new Date().toLocaleDateString('pt-BR');
-  let dataAtendimento = todayStr;
-  const dateMatch = combinedText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
-  if (dateMatch) {
-    dataAtendimento = dateMatch[1];
-  }
+  // 1. Data do atendimento (Inteligente)
+  const dataAtendimento = extractDateFromText(combinedText);
 
-  // 2. UF e Município com inteligência estendida para nomes por extenso (ex: Goiás, Goiânia, Mato Grosso)
+  // 2. UF e Município com inteligência e varredura do banco oficial IBGE de 5.570 cidades
   const { municipio, uf } = extractLocationFromText(combinedText);
 
-  // 3. Extração de Nome do Atendido e Telefone Real
+  // 3. Extração do Nome do Atendido e Telefone Real
   let atendidoNome = extractPersonName(combinedText, tecnicoName);
   const telefone = extractPhone(combinedText);
   let names = extractAllPersonNames(combinedText, tecnicoName);
   const dates = extractAllDatesFromChat(combinedText);
 
-  // 4. Consulta ao banco de capacitação oficial online
+  // 4. Extração Inteligente do Cargo (CACs ou Gestor)
+  const atendidoCargo = extractCargoFromText(combinedText);
+
+  // 5. Consulta ao banco de capacitação oficial online
   const trainingInfo = await lookupTrainingInfo(municipio, uf, atendidoNome);
 
-  // 5. Identificação Inteligente do Assunto (Capacitação, PNATE, Caminho da Escola, SETE)
+  // 6. Identificação Inteligente do Assunto (Capacitação, PNATE, Caminho da Escola, SETE)
   const assunto = extractAssuntoFromText(combinedText, trainingInfo);
 
   // Se o banco de capacitação encontrar o nome completo do participante registrado (ex: Lúcia Duarte Ribeiro Paes), atualiza atendidoNome
@@ -622,12 +679,12 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     }
   }
 
-  // 6. Filtragem de linhas inúteis do WhatsApp (criptografia, etc.)
+  // 7. Filtragem de linhas inúteis do WhatsApp (criptografia, etc.)
   const ignorePhrases = ["criptografia", "mensagens e as chamadas", "código de segurança", "mudou", "entrou usando o link", "saiba mais"];
   const lines = combinedText.split('\n').map(l => l.trim()).filter(Boolean);
   const meaningfulLines = lines.filter(l => !ignorePhrases.some(ign => l.toLowerCase().includes(ign)));
 
-  // 7. Resumo da Demanda
+  // 8. Resumo da Demanda
   let resumoDemanda = "";
   if (meaningfulLines.length > 0) {
     const topicLine = meaningfulLines.find(l => /dúvida|duvida|prestação|prestacao|adesão|adesao|cadastro|rota|ônibus|sistema|acesso|regularização/i.test(l));
@@ -642,7 +699,7 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     resumoDemanda = `Atendimento e suporte sobre ${assunto} do município de ${municipio}`;
   }
 
-  // 8. Observações
+  // 9. Observações
   const obsLines = meaningfulLines.map(l => l.replace(/^\[.*?\]\s*/, ''));
   let observacoes = obsLines.slice(0, 6).join('\n');
   if (!observacoes) observacoes = combinedText.slice(0, 300);
@@ -654,7 +711,7 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
     observacoes += `\n\n[Formação Confirmada]: Participante ${pNome}${cpfInfo} presente na capacitação de ${trainingInfo.capacitacao_local}.`;
   }
 
-  // 9. Consulta da próxima linha livre na planilha oficial
+  // 10. Consulta da próxima linha livre na planilha oficial
   const nextRow = await fetchLiveNextRow();
 
   return {
@@ -674,7 +731,7 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
       capacitacao_data: trainingInfo.capacitacao_data,
       atendido_nome: atendidoNome,
       atendido_telefone: telefone,
-      atendido_cargo: "Gestor",
+      atendido_cargo: atendidoCargo,
       municipio_respondeu: "Sim",
       situacao: "Resolvida",
       observacoes: observacoes
