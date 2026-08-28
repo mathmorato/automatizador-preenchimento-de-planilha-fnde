@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw } from 'lucide-react';
 import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants } from '../../services/api';
+import municipiosData from '../../data/municipios.json';
 
 const ESTADOS_BRASIL = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
@@ -653,20 +654,31 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           </div>
 
           <div className="form-group">
-            <label>Município:</label>
-            <input
-              type="text"
+            <label>Município Atendido ({formData.uf}):</label>
+            <select
               name="municipio"
               className="form-control"
               style={{
                 borderColor: missingFieldKeys.includes('municipio') ? '#EF4444' : undefined,
-                boxShadow: missingFieldKeys.includes('municipio') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
+                boxShadow: missingFieldKeys.includes('municipio') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined,
+                fontWeight: 600
               }}
               value={formData.municipio}
               onChange={handleChange}
-              placeholder="Nome da cidade"
               required
-            />
+            >
+              <option value="">-- Selecione o Município ({formData.uf}) --</option>
+              {formData.municipio && !(municipiosData[formData.uf] || []).includes(formData.municipio) && (
+                <option value={formData.municipio}>
+                  📍 {formData.municipio} (Extraído da Conversa)
+                </option>
+              )}
+              {(municipiosData[formData.uf] || []).map((muni) => (
+                <option key={muni} value={muni}>
+                  {muni}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
