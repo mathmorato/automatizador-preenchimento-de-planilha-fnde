@@ -136,7 +136,24 @@ export async function fetchObsOptions({ rawChatText, assunto, currentValue, idTo
   }
 }
 
-
+export async function fetchNomeOptions({ rawChatText, currentValue, idToken }) {
+  try {
+    const response = await axios.post(
+      `${API_BASE}/ai/nome-options`,
+      {
+        raw_chat_text: rawChatText || '',
+        current_value: currentValue || '',
+      },
+      { headers: { Authorization: `Bearer ${idToken}` }, timeout: 10000 }
+    );
+    return response.data;
+  } catch (err) {
+    return {
+      success: true,
+      options: [currentValue || "Gestor Municipal"]
+    };
+  }
+}
 
 export async function verifyGoogleToken(token) {
   try {

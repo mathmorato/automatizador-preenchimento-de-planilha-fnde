@@ -27,6 +27,7 @@ from .submodules.ai_parser.gemini_client import (
     extract_all_person_names_with_gemini,
     generate_resumo_options_with_gemini,
     generate_obs_options_with_gemini,
+    generate_nome_options_with_gemini,
     extract_all_dates_from_chat
 )
 
@@ -292,6 +293,23 @@ def get_obs_options(req: ObsOptionsRequest, user: dict = Depends(verify_google_t
         return { "success": True, "options": options }
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao gerar opções de observações: {str(e)}")
+
+
+class NomeOptionsRequest(BaseModel):
+    raw_chat_text: Optional[str] = ""
+    current_value: Optional[str] = ""
+
+@app.post("/api/ai/nome-options")
+def get_nome_options(req: NomeOptionsRequest, user: dict = Depends(verify_google_token)):
+    try:
+        options = generate_nome_options_with_gemini(
+            raw_chat_text=req.raw_chat_text or "",
+            current_value=req.current_value or ""
+        )
+        return { "success": True, "options": options }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao gerar opções de nome do atendido: {str(e)}")
+
 
 
 

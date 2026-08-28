@@ -327,6 +327,58 @@ Retorne apenas o JSON:"""
     ]
 
 
+def generate_nome_options_with_gemini(raw_chat_text: str, current_value: str = "") -> List[str]:
+    """
+    Gera de 2 a 4 opções de NOMES PRÓPRIOS de pessoas físicas atendidas (Nome e Sobrenome reais) encontradas no texto da conversa.
+    """
+    chat_snippet = (raw_chat_text or "")[:8000]
+    
+    prompt = f"""Você é uma Inteligência Artificial especialista em extrair nomes de pessoas de conversas do WhatsApp do FNDE / CECATE CO.
+Sua missão é RELER A CONVERSA DO ATENDIMENTO e identificar EXCLUSIVAMENTE NOMES PRÓPRIOS de pessoas físicas atendidas (Nome e Sobrenome reais, ex: "Lany da Silva Baron", "Maria Eduarda", "Carlos Roberto").
+
+--- CONVERSA DO ATENDIMENTO ---
+{chat_snippet}
+--- FIM DA CONVERSA ---
+
+REGRAS OBRIGATÓRIAS:
+1. Retorne EXCLUSIVAMENTE nomes próprios de seres humanos físicos (Nome e Sobrenome).
+2. NUNCA retorne cargos, funções ou títulos (ex: NÃO retorne "Gestor Municipal", "Técnico", "Secretário de Educação").
+3. Se não houver nenhum nome próprio no texto, retorne o array com ["Gestor Municipal"].
+4. Retorne EXCLUSIVAMENTE um array JSON contendo de 2 a 4 nomes: ["Nome 1", "Nome 2"].
+
+Retorne apenas o JSON:"""
+
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+    if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip() != "":
+        try:
+            from google import genai
+            client = genai.Client(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    if response and response.text:
+                        raw = response.text.strip()
+                        if raw.startswith("```"):
+                            raw = re.sub(r'^```(?:json)?\s*', '', raw)
+                            raw = re.sub(r'\s*```$', '', raw)
+                        import json
+                        arr = json.loads(raw.strip())
+                        if isinstance(arr, list) and len(arr) > 0:
+                            clean = [str(opt).strip() for opt in arr if str(opt).strip() and str(opt).strip().lower() not in ["cargo", "técnico", "gestor"]]
+                            if len(clean) > 0:
+                                return clean
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    return [current_value] if current_value and current_value != "Gestor Municipal" else ["Gestor Municipal"]
+
+
+
 
 
 

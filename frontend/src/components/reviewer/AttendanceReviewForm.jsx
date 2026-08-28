@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw, Sparkles } from 'lucide-react';
-import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants, fetchResumoOptions } from '../../services/api';
+import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants, fetchResumoOptions, fetchObsOptions, fetchNomeOptions } from '../../services/api';
+
 
 
 import { extractLocationFromText, matchCanonicalMunicipio } from '../../services/clientParser';
@@ -71,6 +72,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
   const [obsOptions, setObsOptions] = useState([]);
   const [loadingObsOptions, setLoadingObsOptions] = useState(false);
+
+  const [nomeOptions, setNomeOptions] = useState([]);
+  const [loadingNomeOptions, setLoadingNomeOptions] = useState(false);
+
 
 
   // Função 1: Verificar se a Linha Específica está Livre
@@ -276,6 +281,38 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
 
 
+
+  // Gerar Lista de Opções de Nome do Atendido por IA Gemini
+  const handleGenerateNomeOptions = async () => {
+    setLoadingNomeOptions(true);
+    setFormError(null);
+    try {
+      const res = await fetchNomeOptions({
+        rawChatText: rawChatText || formData.observacoes,
+        currentValue: formData.atendido_nome,
+        idToken
+      });
+      const namesList = [];
+      if (res.success && res.options && res.options.length > 0) {
+        res.options.forEach(n => {
+          if (n && !namesList.includes(n)) namesList.push(n);
+        });
+      }
+      if (trainingParticipants && trainingParticipants.length > 0) {
+        trainingParticipants.forEach(p => {
+          if (p.nome && !namesList.includes(p.nome)) namesList.push(p.nome);
+        });
+      }
+      if (namesList.length === 0) {
+        namesList.push("Gestor Municipal");
+      }
+      setNomeOptions(namesList);
+    } catch (err) {
+      setFormError('[ERRO DA IA GEMINI] ' + (err.response?.data?.detail || 'Erro ao gerar opções de nome do atendido com a IA.'));
+    } finally {
+      setLoadingNomeOptions(false);
+    }
+  };
 
   // Gerar Lista de Opções de Resumo por IA Gemini
   const handleGenerateResumoOptions = async () => {
@@ -874,7 +911,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               <label style={{ margin: 0, fontWeight: 700 }}>Nome do Atendido:</label>
             </div>
 
-
             <input
               type="text"
               name="atendido_nome"
@@ -885,8 +921,82 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               }}
               value={formData.atendido_nome}
               onChange={handleChange}
-              placeholder="Nome do gestor ou contato (ou digite aqui manualmente)"
+              placeholder="Nome do gestor ou contato (ou gere opções com a IA abaixo)"
             />
+
+            {/* BOTÃO DA IA GEMINI PARA GERAR OPÇÕES DE NOME DO ATENDIDO */}
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '8px',
+                width: '100%',
+                border: '1.5px solid #0284C7', 
+                background: 'linear-gradient(135deg, #EBF5FF 0%, #E0F2FE 100%)', 
+                color: '#0369A1', 
+                fontSize: '0.82rem', 
+                fontWeight: 800, 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.12)'
+              }}
+              disabled={loadingNomeOptions}
+              onClick={handleGenerateNomeOptions}
+            >
+              {loadingNomeOptions ? (
+                <>
+                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+                  <span>Gemini IA analisando conversa e gerando opções de nome...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} color="#0284C7" />
+                  <span>🤖 Gerar Opções de Nome do Atendido com IA Gemini</span>
+                </>
+              )}
+            </button>
+
+            {/* OPÇÕES DE NOME GERADAS PELA IA GEMINI */}
+            {nomeOptions && nomeOptions.length > 0 && (
+              <div style={{ marginTop: '10px', background: '#F0F9FF', padding: '12px', borderRadius: '10px', border: '1px solid #BAE6FD' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0369A1', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <User size={15} color="#0284C7" />
+                  <span>Nomes identificados/sugeridos pela IA Gemini (clique para selecionar):</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {nomeOptions.map((nameOpt, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      style={{
+                        background: formData.atendido_nome === nameOpt ? '#0284C7' : '#FFFFFF',
+                        color: formData.atendido_nome === nameOpt ? '#FFFFFF' : '#0369A1',
+                        border: formData.atendido_nome === nameOpt ? '1.5px solid #0284C7' : '1px solid #BAE6FD',
+                        padding: '6px 14px',
+                        borderRadius: '16px',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onClick={() => setFormData((prev) => ({ ...prev, atendido_nome: nameOpt }))}
+                    >
+                      <span>👤 {nameOpt}</span>
+                      {formData.atendido_nome === nameOpt && <Check size={14} color="#FFFFFF" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -964,8 +1074,91 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               rows="4"
               value={formData.observacoes}
               onChange={handleChange}
-              placeholder="Digite todos os detalhes da orientação ou pendência..."
+              placeholder="Digite todos os detalhes da orientação ou pendência (ou gere opções com a IA abaixo)..."
             />
+
+            {/* BOTÃO DA IA GEMINI PARA GERAR OPÇÕES DE OBSERVAÇÕES E ENCAMINHAMENTOS */}
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '8px',
+                width: '100%',
+                border: '1.5px solid #047857', 
+                background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', 
+                color: '#065F46', 
+                fontSize: '0.82rem', 
+                fontWeight: 800, 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(4, 120, 87, 0.12)'
+              }}
+              disabled={loadingObsOptions}
+              onClick={handleGenerateObsOptions}
+            >
+              {loadingObsOptions ? (
+                <>
+                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+                  <span>Gemini IA analisando conversa e gerando opções de observações...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} color="#047857" />
+                  <span>🤖 Gerar Opções de Observações e Encaminhamentos com IA Gemini</span>
+                </>
+              )}
+            </button>
+
+            {/* OPÇÕES DE OBSERVAÇÕES GERADAS PELA IA GEMINI */}
+            {obsOptions && obsOptions.length > 0 && (
+              <div style={{ marginTop: '10px', background: '#F0FDF4', padding: '12px', borderRadius: '10px', border: '1px solid #86EFAC' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#065F46', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText size={15} color="#047857" />
+                  <span>Opções de Observações e Encaminhamentos sugeridas pela IA Gemini (clique para preencher):</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {obsOptions.map((optText, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      style={{
+                        textAlign: 'left',
+                        background: formData.observacoes === optText ? '#047857' : '#FFFFFF',
+                        color: formData.observacoes === optText ? '#FFFFFF' : '#1E293B',
+                        border: formData.observacoes === optText ? '1.5px solid #047857' : '1px solid #CBD5E1',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        lineHeight: '1.4',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onClick={() => setFormData((prev) => ({ ...prev, observacoes: optText }))}
+                    >
+                      <span>{optText}</span>
+                      {formData.observacoes === optText ? (
+                        <Check size={16} color="#FFFFFF" style={{ flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, flexShrink: 0 }}>
+                          Usar esta opção
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
 
