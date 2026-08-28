@@ -340,6 +340,7 @@ export async function lookupTrainingInfo(municipio, uf = "", personName = "") {
 
 export async function getTrainingParticipantsForMunicipio(municipio, uf = "") {
   const muniNorm = normalizeText(municipio);
+  const ufNorm = (uf || "").trim().toUpperCase();
   if (!muniNorm || muniNorm === "MUNICIPIO ATENDIDO") return [];
 
   const records = await fetchTrainingDatabase();
@@ -349,7 +350,13 @@ export async function getTrainingParticipantsForMunicipio(municipio, uf = "") {
   for (const r of records) {
     if (r.participou && r.nome) {
       const rowMuni = r.municipio_norm;
-      if (rowMuni === muniNorm || (muniNorm.length >= 4 && rowMuni.includes(muniNorm)) || (rowMuni.length >= 4 && muniNorm.includes(rowMuni))) {
+      const rowUf = r.uf ? r.uf.trim().toUpperCase() : "";
+
+      // Filtro RÍGIDO por município E estado UF
+      const ufMatch = !ufNorm || !rowUf || rowUf === ufNorm;
+      const muniMatch = rowMuni === muniNorm;
+
+      if (ufMatch && muniMatch) {
         const nomeClean = toTitleCase(r.nome);
         if (!seenNames.has(nomeClean)) {
           seenNames.add(nomeClean);

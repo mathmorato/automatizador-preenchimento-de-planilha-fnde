@@ -913,7 +913,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                 <option value="">-- Clique aqui para escolher quem foi atendido (Preenchimento Automático) --</option>
                 {trainingParticipants.map((p, idx) => (
                   <option key={idx} value={idx}>
-                    👤 {p.nome} ({p.local} • {p.data})
+                    👤 {p.nome} (Origem: {p.municipio} - {p.uf} • Local Capacitação: {p.local} • Data: {p.data})
                   </option>
                 ))}
                 <option value="none">❌ Nenhuma das opções (Outro contato / Digitar Manualmente)</option>

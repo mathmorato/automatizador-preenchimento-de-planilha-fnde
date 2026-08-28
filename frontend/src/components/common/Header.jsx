@@ -16,15 +16,6 @@ export default function Header({ user, onLogout }) {
 
         {user && (
           <div className="nav-controls" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button
-              onClick={handleDownloadCSV}
-              className="btn btn-primary"
-              style={{ padding: '5px 10px', fontSize: '0.78rem', background: '#047857', borderColor: '#047857', color: '#FFF', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 700 }}
-              title="Baixar todos os atendimentos salvos em arquivo CSV / Excel"
-            >
-              <Download size={14} /> Baixar CSV
-            </button>
-
             <div className="user-profile-badge" style={{ padding: '4px 10px' }}>
               <ShieldCheck size={15} color="#0066B3" />
               <div>
