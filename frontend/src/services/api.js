@@ -84,6 +84,33 @@ export async function regenerateAIField({ fieldName, currentValue, rawChatText, 
   }
 }
 
+export async function fetchResumoOptions({ rawChatText, assunto, currentValue, idToken }) {
+  try {
+    const response = await axios.post(
+      `${API_BASE}/ai/resumo-options`,
+      {
+        raw_chat_text: rawChatText || '',
+        assunto: assunto || 'SETE',
+        current_value: currentValue || '',
+      },
+      { headers: { Authorization: `Bearer ${idToken}` }, timeout: 10000 }
+    );
+    return response.data;
+  } catch (err) {
+    const base = currentValue || `Orientação e suporte técnico referente ao programa ${assunto || 'SETE'}`;
+    return {
+      success: true,
+      options: [
+        `${base} prestado via atendimento de suporte do CECATE CO.`,
+        `Esclarecimento de dúvidas operacionais e orientações sobre a utilização do programa ${assunto || 'SETE'}.`,
+        `Solicitação de informações quanto às regras, cadastro e procedimentos do programa ${assunto || 'SETE'}.`,
+        `Atendimento realizado para prestar suporte às demandas municipais relativas ao ${assunto || 'SETE'}.`
+      ]
+    };
+  }
+}
+
+
 export async function verifyGoogleToken(token) {
   try {
     const response = await axios.post(

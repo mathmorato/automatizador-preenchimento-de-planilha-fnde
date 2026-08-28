@@ -25,8 +25,10 @@ from .submodules.ai_parser.gemini_client import (
     regenerate_field_content,
     extract_all_person_names,
     extract_all_person_names_with_gemini,
+    generate_resumo_options_with_gemini,
     extract_all_dates_from_chat
 )
+
 
 from .submodules.ai_parser.zip_extractor import process_whatsapp_zip
 from .submodules.ai_parser.training_lookup import get_all_training_participants_for_municipio
@@ -252,6 +254,25 @@ def regenerate_field(req: RegenerateFieldRequest, user: dict = Depends(verify_go
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao regenerar com IA: {str(e)}")
+
+
+class ResumoOptionsRequest(BaseModel):
+    raw_chat_text: Optional[str] = ""
+    assunto: Optional[str] = "SETE"
+    current_value: Optional[str] = ""
+
+@app.post("/api/ai/resumo-options")
+def get_resumo_options(req: ResumoOptionsRequest, user: dict = Depends(verify_google_token)):
+    try:
+        options = generate_resumo_options_with_gemini(
+            raw_chat_text=req.raw_chat_text or "",
+            assunto=req.assunto or "SETE",
+            current_value=req.current_value or ""
+        )
+        return { "success": True, "options": options }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao gerar opções de resumo: {str(e)}")
+
 
 @app.get("/api/sheets/next-row")
 def get_next_row_info(user: dict = Depends(verify_google_token)):
