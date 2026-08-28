@@ -962,35 +962,8 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           <div className="form-group">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <label style={{ margin: 0, fontWeight: 700 }}>Nome do Atendido:</label>
-
-              <button
-                type="button"
-                className="btn-outline"
-                style={{ 
-                  border: 'none', 
-                  background: '#EBF5FF', 
-                  color: '#0066B3', 
-                  fontSize: '0.78rem', 
-                  fontWeight: 700,
-                  padding: '3px 8px', 
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                disabled={loadingNome}
-                onClick={handleRegenerateNome}
-              >
-                {loadingNome ? (
-                  <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
-                ) : (
-                  <>
-                    <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Nome
-                  </>
-                )}
-              </button>
             </div>
+
 
             <input
               type="text"

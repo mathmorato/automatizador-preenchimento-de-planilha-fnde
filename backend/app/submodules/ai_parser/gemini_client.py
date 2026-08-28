@@ -15,7 +15,7 @@ ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS
 def extract_person_name(text: str, tecnico_name: str = "") -> str:
     """
     Extrai o nome do atendido/gestor a partir de apresentações na conversa,
-    saudações ("Bom dia Neide", "Olá Dra. Maria"), assinaturas ou remetentes do WhatsApp.
+    respostas a questionários ("Nome completo:\nLany da Silva Baron"), saudações, assinaturas ou remetentes do WhatsApp.
     """
     if not text:
         return "Gestor Municipal"
@@ -23,6 +23,24 @@ def extract_person_name(text: str, tecnico_name: str = "") -> str:
     tech_keywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "fnde", "admin"]
     if tecnico_name:
         tech_keywords.append(tecnico_name.lower())
+
+    # 0. Resposta a questionário (ex: "Nome completo:\n... Lany da Silva Baron" ou mensagens enviadas por telefone)
+    pattern_form_name = r'(?:nome\s+completo|nome\s+do\s+atendido|nome)\s*:?\s*\n+(?:[^\n]*:\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
+    form_match = re.search(pattern_form_name, text, re.IGNORECASE)
+    if form_match:
+        name = form_match.group(1).strip().title()
+        noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "município", "prefeitura"]
+        if name.lower() not in noise and len(name) > 2 and not any(tk in name.lower() for tk in tech_keywords):
+            return name
+
+    # 0.1 Nomes enviados na primeira linha de mensagem por usuário de telefone (ex: "+55 19 93300-4500: Lany da Silva Baron")
+    pattern_msg_body_name = r'\]\s*\+?\d[\d\s\-\(\)]+:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
+    msg_body_match = re.search(pattern_msg_body_name, text)
+    if msg_body_match:
+        cand = msg_body_match.group(1).strip().title()
+        noise = ["gestor municipal", "bom dia", "boa tarde", "boa noite", "muito obrigado", "tudo bem", "prefeitura municipal"]
+        if cand.lower() not in noise and not any(tk in cand.lower() for tk in tech_keywords):
+            return cand
 
     # 1. Apresentações explícitas ("Meu nome é X", "Me chamo X", "Sou a X", "Aqui é o X")
     pattern_intro = r'(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})'
@@ -58,6 +76,7 @@ def extract_person_name(text: str, tecnico_name: str = "") -> str:
     return "Gestor Municipal"
 
 
+
 def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
     """
     Extrai TODOS os possíveis nomes de pessoas mencionados na conversa do atendimento.
@@ -67,7 +86,21 @@ def extract_all_person_names(text: str, tecnico_name: str = "") -> List[str]:
 
     names = []
     
+    # 0. Respostas a questionários ("Nome completo:\nLany da Silva Baron")
+    pattern_form_name = r'(?:nome\s+completo|nome\s+do\s+atendido|nome)\s*:?\s*\n+(?:[^\n]*:\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
+    for m in re.finditer(pattern_form_name, text, re.IGNORECASE):
+        names.append(m.group(1).strip().title())
+
+    # 0.1 Nomes enviados por usuários de telefone (ex: "+55 19 93300-4500: Lany da Silva Baron")
+    pattern_msg_body_name = r'\]\s*\+?\d[\d\s\-\(\)]+:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
+    for m in re.finditer(pattern_msg_body_name, text):
+        cand = m.group(1).strip().title()
+        noise = ["gestor municipal", "bom dia", "boa tarde", "boa noite", "muito obrigado", "tudo bem", "prefeitura municipal"]
+        if cand.lower() not in noise and not any(tk in cand.lower() for tk in ["cecate", "suporte", "matheus", "willer", "marcos", "lara"]):
+            names.append(cand)
+
     # 1. Apresentações explícitas
+
     pattern_intro = r'(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})'
     for m in re.finditer(pattern_intro, text, re.IGNORECASE):
         names.append(m.group(1).strip().title())

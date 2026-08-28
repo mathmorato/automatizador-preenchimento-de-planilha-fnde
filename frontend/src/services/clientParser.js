@@ -521,9 +521,32 @@ export function extractPersonName(text, tecnicoName = "") {
 
   const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "fnde", "admin"];
   if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
-  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "munícipio", "prefeitura", "secretário", "secretária", "gestor", "diretor", "professor", "professora", "go", "goiás", "df", "mt", "ms", "trabalho"];
+  // 0. Respostas a questionários ("Nome completo:\nLany da Silva Baron")
+  const patternFormName = /(?:nome\s+completo|nome\s+do\s+atendido|nome)\s*:?\s*\n+(?:[^\n]*:\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})/i;
+  const matchForm = text.match(patternFormName);
+  if (matchForm && matchForm[1]) {
+    const cand = matchForm[1].trim();
+    const noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "município", "prefeitura"];
+    if (!noise.includes(cand.toLowerCase()) && cand.length > 2 && !techKeywords.some(tk => cand.toLowerCase().includes(tk))) {
+      return toTitleCase(cand);
+    }
+  }
+
+  // 0.1 Nomes enviados por usuários de telefone (ex: "+55 19 93300-4500: Lany da Silva Baron")
+  const patternMsgBodyName = /\]\s*\+?\d[\d\s\-\(\)]+:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})/g;
+  const matchesMsgBody = Array.from(text.matchAll(patternMsgBodyName));
+  for (const m of matchesMsgBody) {
+    if (m[1]) {
+      const cand = m[1].trim();
+      const noise = ["gestor municipal", "bom dia", "boa tarde", "boa noite", "muito obrigado", "tudo bem", "prefeitura municipal"];
+      if (!noise.includes(cand.toLowerCase()) && !techKeywords.some(tk => cand.toLowerCase().includes(tk))) {
+        return toTitleCase(cand);
+      }
+    }
+  }
 
   // 1. Apresentações explícitas
+
   const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,3})/i;
   const matchIntro = text.match(patternIntro);
   if (matchIntro && matchIntro[1]) {
