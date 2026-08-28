@@ -12,6 +12,7 @@ export default function Header({ user, onLogout }) {
     setApiKey(key);
   }, []);
 
+
   const handleSaveKey = () => {
     localStorage.setItem('GEMINI_API_KEY', apiKey.trim());
     setSavedSuccess(true);
@@ -22,6 +23,7 @@ export default function Header({ user, onLogout }) {
   };
 
   const hasKey = Boolean(localStorage.getItem('GEMINI_API_KEY'));
+
 
   return (
     <header className="top-nav">

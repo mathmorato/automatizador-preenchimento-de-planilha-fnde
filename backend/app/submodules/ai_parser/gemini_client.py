@@ -184,16 +184,36 @@ REGRAS OBRIGATÓRIAS:
 """
 
     if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip() != "":
+        models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
         try:
             from google import genai
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=[prompt]
-            )
-            clean_res = response.text.strip().strip('"')
-            if clean_res:
-                return clean_res
+            client = genai.Client(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=[prompt]
+                    )
+                    clean_res = response.text.strip().strip('"')
+                    if clean_res:
+                        return clean_res
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        try:
+            import google.generativeai as genai_legacy
+            genai_legacy.configure(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    model = genai_legacy.GenerativeModel(model_name)
+                    response = model.generate_content([prompt])
+                    clean_res = response.text.strip().strip('"')
+                    if clean_res:
+                        return clean_res
+                except Exception:
+                    continue
         except Exception:
             pass
 
@@ -369,23 +389,44 @@ def parse_attendance_from_content(
         for img in images:
             contents.append(img)
 
+    raw_text = None
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+
     try:
         from google import genai
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=contents
-        )
-        raw_text = response.text
+        client = genai.Client(api_key=settings.GEMINI_API_KEY.strip())
+        for model_name in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents
+                )
+                if response and response.text:
+                    raw_text = response.text
+                    break
+            except Exception:
+                continue
     except Exception:
+        pass
+
+    if not raw_text:
         try:
             import google.generativeai as genai_legacy
-            genai_legacy.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai_legacy.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(contents)
-            raw_text = response.text
+            genai_legacy.configure(api_key=settings.GEMINI_API_KEY.strip())
+            for model_name in models_to_try:
+                try:
+                    model = genai_legacy.GenerativeModel(model_name)
+                    response = model.generate_content(contents)
+                    if response and response.text:
+                        raw_text = response.text
+                        break
+                except Exception:
+                    continue
         except Exception:
-            return rule_based_parse_attendance(text_content, tecnico_name)
+            pass
+
+    if not raw_text:
+        return rule_based_parse_attendance(text_content, tecnico_name)
 
     json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
     if not json_match:

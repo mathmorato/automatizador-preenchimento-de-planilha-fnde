@@ -653,7 +653,9 @@ export function extractAssuntoFromText(text, trainingInfo) {
 }
 
 export async function parseChatWithGeminiAPI({ textContent, apiKey }) {
-  if (!apiKey || !textContent) return null;
+  const keyToUse = apiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('GEMINI_API_KEY') : null);
+  if (!keyToUse || !textContent) return null;
+
 
   const prompt = `Você é um assistente especialista em analisar conversas do WhatsApp do CECATE Centro-Oeste / FNDE para preenchimento de formulários oficiais do transporte escolar.
   
@@ -678,33 +680,35 @@ ${textContent}
 
 Responda APENAS com o objeto JSON puro, sem marcações de markdown ou blocos de código.`;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    });
+  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
+  for (const modelName of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${keyToUse.trim()}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
 
-    if (!response.ok) {
-      console.warn("Chamada Gemini API retornou status:", response.status);
-      return null;
+      if (response.ok) {
+        const data = await response.json();
+        const rawJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawJsonText) {
+          const parsed = JSON.parse(rawJsonText);
+          if (parsed) return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn(`Aviso ao consultar API do Gemini (${modelName}):`, e);
     }
-
-    const data = await response.json();
-    const rawJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawJsonText) return null;
-
-    const parsed = JSON.parse(rawJsonText);
-    return parsed;
-  } catch (e) {
-    console.warn("Aviso ao consultar API do Gemini:", e);
-    return null;
   }
+
+  return null;
 }
+
 
 export function matchCanonicalMunicipio(extractedMuni, targetUf = "GO") {
   if (!extractedMuni) return (municipiosData[targetUf] || [])[0] || "";

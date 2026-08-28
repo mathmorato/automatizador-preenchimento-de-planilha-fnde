@@ -21,9 +21,16 @@ __pycache__/
 *.db
 backend/app/submodules/auth/users.db
 .env
+.env.*
+!.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
 credentials/
+
 
 # OS / Editor junk
 .DS_Store
