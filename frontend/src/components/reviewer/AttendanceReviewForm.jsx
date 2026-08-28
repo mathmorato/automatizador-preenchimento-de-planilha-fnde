@@ -206,8 +206,58 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
     }
   };
 
+  // Estado de Validação dos Campos da Conferência
+  const [missingFieldKeys, setMissingFieldKeys] = useState([]);
+
+  const validateAllFormFields = () => {
+    const errors = [];
+    const missingKeys = [];
+
+    if (!formData.tecnico || !formData.tecnico.trim()) {
+      errors.push("Técnico do CECATE");
+      missingKeys.push("tecnico");
+    }
+    if (!formData.data_atendimento || !formData.data_atendimento.trim()) {
+      errors.push("Data do Atendimento");
+      missingKeys.push("data_atendimento");
+    }
+    if (!formData.assunto || !formData.assunto.trim()) {
+      errors.push("Assunto (Programa FNDE)");
+      missingKeys.push("assunto");
+    }
+    if (!formData.resumo_demanda || !formData.resumo_demanda.trim() || formData.resumo_demanda.trim().length < 4) {
+      errors.push("Resumo da Demanda (preencha a descrição da dúvida/solicitação)");
+      missingKeys.push("resumo_demanda");
+    }
+    if (!formData.uf || !formData.uf.trim()) {
+      errors.push("UF (Estado)");
+      missingKeys.push("uf");
+    }
+    if (!formData.municipio || !formData.municipio.trim() || formData.municipio.trim().toLowerCase() === "município atendido" || formData.municipio.trim().toLowerCase() === "municipio atendido") {
+      errors.push("Município (informe o nome da cidade atendida)");
+      missingKeys.push("municipio");
+    }
+    if (!formData.atendido_nome || !formData.atendido_nome.trim()) {
+      errors.push("Nome do Atendido");
+      missingKeys.push("atendido_nome");
+    }
+    if (!formData.observacoes || !formData.observacoes.trim()) {
+      errors.push("Observações e Encaminhamentos");
+      missingKeys.push("observacoes");
+    }
+    if (!targetRow || parseInt(targetRow, 10) < 1) {
+      errors.push("Número da Linha de Destino na Planilha");
+      missingKeys.push("targetRow");
+    }
+
+    return { errors, missingKeys };
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (missingFieldKeys.includes(name)) {
+      setMissingFieldKeys((prev) => prev.filter((k) => k !== name));
+    }
     if (name === 'capacitacao_participou' && value === 'Não') {
       setSelectedParticipantIdx('');
       setFormData((prev) => ({
@@ -300,6 +350,21 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
+
+    // CONFERÊNCIA OBRIGATÓRIA DE TODOS OS CAMPOS
+    const { errors, missingKeys } = validateAllFormFields();
+    if (errors.length > 0) {
+      setMissingFieldKeys(missingKeys);
+      setFormError(
+        `CONFERÊNCIA PENDENTE: Por favor, preencha as seguintes informações obrigatórias antes de gravar na planilha:\n• ${errors.join('\n• ')}`
+      );
+
+      const panelCard = document.querySelector('.panel-card');
+      if (panelCard) {
+        panelCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
 
     if (rowStatus && !rowStatus.is_empty) {
       setFormError(`BLOQUEIO DE SEGURANÇA: A Linha ${targetRow} já contém dados na planilha. Clique em 'Auto-Buscar Linha Livre' para encontrar uma linha vazia.`);
@@ -551,6 +616,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               type="text"
               name="resumo_demanda"
               className="form-control"
+              style={{
+                borderColor: missingFieldKeys.includes('resumo_demanda') ? '#EF4444' : undefined,
+                boxShadow: missingFieldKeys.includes('resumo_demanda') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
+              }}
               value={formData.resumo_demanda}
               onChange={handleChange}
               placeholder="Ex: Dúvida sobre atualização do SETE ou prestação de contas"
@@ -568,6 +637,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
             <select
               name="uf"
               className="form-control"
+              style={{
+                borderColor: missingFieldKeys.includes('uf') ? '#EF4444' : undefined,
+                boxShadow: missingFieldKeys.includes('uf') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
+              }}
               value={formData.uf}
               onChange={handleChange}
             >
@@ -585,6 +658,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               type="text"
               name="municipio"
               className="form-control"
+              style={{
+                borderColor: missingFieldKeys.includes('municipio') ? '#EF4444' : undefined,
+                boxShadow: missingFieldKeys.includes('municipio') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
+              }}
               value={formData.municipio}
               onChange={handleChange}
               placeholder="Nome da cidade"
@@ -733,6 +810,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               type="text"
               name="atendido_nome"
               className="form-control"
+              style={{
+                borderColor: missingFieldKeys.includes('atendido_nome') ? '#EF4444' : undefined,
+                boxShadow: missingFieldKeys.includes('atendido_nome') ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : undefined
+              }}
               value={formData.atendido_nome}
               onChange={handleChange}
               placeholder="Nome do gestor ou contato (ou digite aqui manualmente)"
