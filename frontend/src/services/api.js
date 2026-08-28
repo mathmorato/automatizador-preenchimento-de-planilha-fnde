@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { parseChatClientSide } from './clientParser';
+import { parseChatClientSide, fetchLiveNextRow, getTrainingParticipantsForMunicipio } from './clientParser';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -39,10 +39,12 @@ export async function fetchNextRow(idToken) {
   try {
     const response = await axios.get(`${API_BASE}/sheets/next-row`, {
       headers: { Authorization: `Bearer ${idToken}` },
+      timeout: 5000
     });
     return response.data;
   } catch (err) {
-    return { success: true, next_row: 580, total_rows: 579 };
+    const nextRow = await fetchLiveNextRow();
+    return { success: true, next_row: nextRow, total_rows: nextRow - 1 };
   }
 }
 
@@ -50,6 +52,7 @@ export async function checkRowStatus(targetRow, idToken) {
   try {
     const response = await axios.get(`${API_BASE}/sheets/check-row/${targetRow}`, {
       headers: { Authorization: `Bearer ${idToken}` },
+      timeout: 5000
     });
     return response.data;
   } catch (err) {
@@ -68,7 +71,7 @@ export async function regenerateAIField({ fieldName, currentValue, rawChatText, 
         user_instruction: userInstruction || '',
         assunto: assunto || 'SETE',
       },
-      { headers: { Authorization: `Bearer ${idToken}` } }
+      { headers: { Authorization: `Bearer ${idToken}` }, timeout: 10000 }
     );
     return response.data;
   } catch (err) {
@@ -155,9 +158,11 @@ export async function fetchTrainingParticipants(municipio, uf, idToken) {
     const response = await axios.get(`${API_BASE}/training/participants`, {
       params: { municipio, uf },
       headers: { Authorization: `Bearer ${idToken}` },
+      timeout: 5000
     });
     return response.data;
   } catch (err) {
-    return { success: true, municipio, uf, count: 0, participants: [] };
+    const participants = await getTrainingParticipantsForMunicipio(municipio, uf);
+    return { success: true, municipio, uf, count: participants.length, participants };
   }
 }
