@@ -516,18 +516,30 @@ export function extractDateFromText(text) {
   return new Date().toLocaleDateString('pt-BR');
 }
 
+const CLIENT_BLACK_LIST_NAMES = [
+  "cargo que ocupa", "cargo que", "cargo ocupado", "cargo",
+  "tipo de vinculo", "tipo de vínculo", "vinculo", "vínculo",
+  "municipio que representa", "município que representa",
+  "preencha aqui", "seu nome", "nome completo", "nome do atendido", "nome",
+  "telefone de contato", "qual o seu cargo", "cacs", "cacs pnate",
+  "gestor municipal", "gestor", "atendimento", "solicitacao", "solicitação",
+  "prefeitura municipal", "educacao", "educação", "transporte escolar",
+  "cecate co", "fnde gov", "whats app", "boa tarde", "bom dia", "boa noite"
+];
+
 export function extractPersonName(text, tecnicoName = "") {
   if (!text) return "Gestor Municipal";
 
   const techKeywords = ["cecate", "suporte", "matheus", "willer", "marcos", "lara", "kariny", "dheovanna", "técnico", "tecnico", "fnde", "admin"];
   if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
+
   // 0. Respostas a questionários ("Nome completo:\nLany da Silva Baron")
   const patternFormName = /(?:nome\s+completo|nome\s+do\s+atendido|nome)\s*:?\s*\n+(?:[^\n]*:\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})/i;
   const matchForm = text.match(patternFormName);
   if (matchForm && matchForm[1]) {
     const cand = matchForm[1].trim();
-    const noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "município", "prefeitura"];
-    if (!noise.includes(cand.toLowerCase()) && cand.length > 2 && !techKeywords.some(tk => cand.toLowerCase().includes(tk))) {
+    const candLow = cand.toLowerCase();
+    if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && cand.length > 2 && !techKeywords.some(tk => candLow.includes(tk))) {
       return toTitleCase(cand);
     }
   }
@@ -538,27 +550,21 @@ export function extractPersonName(text, tecnicoName = "") {
   for (const m of matchesMsgBody) {
     if (m[1]) {
       const cand = m[1].trim();
-      const noise = ["gestor municipal", "bom dia", "boa tarde", "boa noite", "muito obrigado", "tudo bem", "prefeitura municipal"];
-      if (!noise.includes(cand.toLowerCase()) && !techKeywords.some(tk => cand.toLowerCase().includes(tk))) {
+      const candLow = cand.toLowerCase();
+      if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && !techKeywords.some(tk => candLow.includes(tk))) {
         return toTitleCase(cand);
       }
     }
   }
 
   // 1. Apresentações explícitas
-
   const patternIntro = /(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o|aqui\s+[ée]\s+a|aqui\s+[ée]\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,3})/i;
   const matchIntro = text.match(patternIntro);
   if (matchIntro && matchIntro[1]) {
-    const rawWords = matchIntro[1].trim().split(/\s+/);
-    const cleanWords = [];
-    for (const w of rawWords) {
-      if (trailingStopwords.includes(w.toLowerCase())) break;
-      cleanWords.push(w);
-    }
-    const name = cleanWords.join(' ').trim();
-    if (name.length > 2 && !techKeywords.some(tk => name.toLowerCase().includes(tk))) {
-      return toTitleCase(name);
+    const cand = matchIntro[1].trim();
+    const candLow = cand.toLowerCase();
+    if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && cand.length > 2 && !techKeywords.some(tk => candLow.includes(tk))) {
+      return toTitleCase(cand);
     }
   }
 
@@ -568,8 +574,8 @@ export function extractPersonName(text, tecnicoName = "") {
   for (const m of matchesGreet) {
     if (m[1]) {
       const candidate = m[1].trim();
-      const noise = ["gestor", "secretário", "secretaria", "diretor", "técnico", "tecnico", "professor", "professora", "prefeitura", "município", "tudo", "como", "esta", "está", "tudo bem"];
-      if (!noise.includes(candidate.toLowerCase()) && candidate.length > 2 && !techKeywords.some(tk => candidate.toLowerCase().includes(tk))) {
+      const candLow = candidate.toLowerCase();
+      if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && candidate.length > 2 && !techKeywords.some(tk => candLow.includes(tk))) {
         return toTitleCase(candidate);
       }
     }
@@ -579,9 +585,11 @@ export function extractPersonName(text, tecnicoName = "") {
   const senders = text.match(/\]\s*([^:\n]+):/g) || [];
   for (const s of senders) {
     const clean = s.replace(/\]\s*/, '').replace(':', '').trim();
+    const cleanLow = clean.toLowerCase();
     const isPhone = /^\+?\d+|\d{4,}/.test(clean);
-    const isTech = techKeywords.some(tk => clean.toLowerCase().includes(tk));
-    if (!isPhone && !isTech && clean.length > 2 && clean.length < 40) {
+    const isTech = techKeywords.some(tk => cleanLow.includes(tk));
+    const isBlacklisted = CLIENT_BLACK_LIST_NAMES.some(bl => cleanLow.includes(bl));
+    if (!isPhone && !isTech && !isBlacklisted && clean.length > 2 && clean.length < 40) {
       return toTitleCase(clean);
     }
   }
@@ -595,7 +603,6 @@ export function extractPersonName(text, tecnicoName = "") {
   return "Gestor Municipal";
 }
 
-
 export function extractAllPersonNames(text, tecnicoName = "") {
   if (!text) return [];
   const names = [];
@@ -607,20 +614,40 @@ export function extractAllPersonNames(text, tecnicoName = "") {
   ];
   if (tecnicoName) techKeywords.push(tecnicoName.toLowerCase());
 
-  // 1. Apresentações explícitas (ex: "Meu nome é Neide", "Sou a Maria")
-  const introMatches = text.matchAll(/(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})/gi);
-  const trailingStopwords = ["sou", "de", "do", "da", "dos", "das", "em", "no", "na", "que", "falo", "aqui", "cidade", "município", "go", "goiás", "trabalho", "na", "prefeitura"];
+  // 0. Respostas a questionários ("Nome completo:\nLany da Silva Baron")
+  const patternFormName = /(?:nome\s+completo|nome\s+do\s+atendido|nome)\s*:?\s*\n+(?:[^\n]*:\s*)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})/gi;
+  const matchesForm = Array.from(text.matchAll(patternFormName));
+  for (const m of matchesForm) {
+    if (m[1]) {
+      const cand = m[1].trim();
+      const candLow = cand.toLowerCase();
+      if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && cand.length > 2 && !techKeywords.some(tk => candLow.includes(tk))) {
+        names.push(toTitleCase(cand));
+      }
+    }
+  }
+
+  // 0.1 Nomes em mensagens enviadas por telefone
+  const patternMsgBodyName = /\]\s*\+?\d[\d\s\-\(\)]+:\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+(?:de|da|do|dos|das|e)\s+)?(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,3})/g;
+  const matchesMsgBody = Array.from(text.matchAll(patternMsgBodyName));
+  for (const m of matchesMsgBody) {
+    if (m[1]) {
+      const cand = m[1].trim();
+      const candLow = cand.toLowerCase();
+      if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && !techKeywords.some(tk => candLow.includes(tk))) {
+        names.push(toTitleCase(cand));
+      }
+    }
+  }
+
+  // 1. Apresentações explícitas
+  const introMatches = Array.from(text.matchAll(/(?:meu\s+nome\s+[ée]|me\s+chamo|sou\s+a|sou\s+o)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){0,2})/gi));
   for (const m of introMatches) {
     if (m[1]) {
-      const rawWords = m[1].trim().split(/\s+/);
-      const cleanWords = [];
-      for (const w of rawWords) {
-        if (trailingStopwords.includes(w.toLowerCase())) break;
-        cleanWords.push(w);
-      }
-      const cleanName = cleanWords.join(' ').trim();
-      if (cleanName.length > 2 && !techKeywords.some(tk => cleanName.toLowerCase().includes(tk))) {
-        names.push(toTitleCase(cleanName));
+      const cand = m[1].trim();
+      const candLow = cand.toLowerCase();
+      if (!CLIENT_BLACK_LIST_NAMES.some(bl => candLow.includes(bl)) && cand.length > 2 && !techKeywords.some(tk => candLow.includes(tk))) {
+        names.push(toTitleCase(cand));
       }
     }
   }
@@ -629,15 +656,18 @@ export function extractAllPersonNames(text, tecnicoName = "") {
   const senders = text.match(/\]\s*([^:\n]+):/g) || [];
   for (const s of senders) {
     const clean = s.replace(/\]\s*/, '').replace(':', '').trim();
+    const cleanLow = clean.toLowerCase();
     const isPhone = /^\+?\d+|\d{4,}/.test(clean);
-    const isTech = techKeywords.some(tk => clean.toLowerCase().includes(tk));
-    if (!isPhone && !isTech && clean.length > 2 && clean.length < 40) {
+    const isTech = techKeywords.some(tk => cleanLow.includes(tk));
+    const isBlacklisted = CLIENT_BLACK_LIST_NAMES.some(bl => cleanLow.includes(bl));
+    if (!isPhone && !isTech && !isBlacklisted && clean.length > 2 && clean.length < 40) {
       names.push(toTitleCase(clean));
     }
   }
 
   return Array.from(new Set(names));
 }
+
 
 export function extractAllDatesFromChat(text) {
   if (!text) return [new Date().toLocaleDateString('pt-BR')];
