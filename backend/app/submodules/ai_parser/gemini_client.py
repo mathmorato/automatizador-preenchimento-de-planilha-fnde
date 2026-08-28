@@ -268,23 +268,27 @@ Retorne apenas o JSON:"""
 
 def generate_obs_options_with_gemini(raw_chat_text: str, assunto: str = "SETE", current_value: str = "") -> List[str]:
     """
-    Gera de 3 a 4 opções técnicas detalhadas de Observações e Encaminhamentos para o atendente escolher.
+    Gera de 3 a 4 opções técnicas detalhadas de Observações e Encaminhamentos com foco em como o problema foi resolvido/status da demanda.
     """
     chat_snippet = (raw_chat_text or "")[:8000]
     
-    prompt = f"""Você é um especialista em relatórios de atendimento do FNDE / CECATE CO.
-Sua missão é RELER A CONVERSA DO ATENDIMENTO e o Assunto ({assunto}) e gerar 3 a 4 OPÇÕES DISTINTAS, DETALHADAS E PROFISSIONAIS de "Observações e Encaminhamentos" no padrão oficial do CECATE CO FNDE.
+    prompt = f"""Você é uma Inteligência Artificial especialista em relatórios de atendimento do FNDE / CECATE CO.
+Sua missão é RELER A CONVERSA COMPLETA DO ATENDIMENTO e o Assunto ({assunto}) e gerar 3 a 4 OPÇÕES DISTINTAS, DETALHADAS E PROFISSIONAIS de "Observações e Encaminhamentos" para a planilha oficial.
 
 --- CONVERSA DO ATENDIMENTO ---
 {chat_snippet}
 --- FIM DA CONVERSA ---
 
-[TEXTO ATUAL / BASE]: "{current_value}"
+O QUE É O ENCAMINHAMENTO / OBSERVAÇÃO:
+É o registro de como o problema foi resolvido, as orientações prestadas ou se a demanda ficou pendente (ex: "Demanda resolvida", "Pendente de envio de documentação pelo município").
 
-REGRAS OBRIGATÓRIAS:
-1. As opções devem descrever detalhadamente o suporte prestado, a orientação dada e os encaminhamentos finais (ex: "Orientado sobre acesso ao sistema SETE via conta Gov.br pessoal. Informado sobre os procedimentos de suporte técnico e atualização no Habilita FNDE.").
-2. Crie variações formais no padrão técnico dos relatórios da planilha oficial do CECATE CO FNDE.
-3. Retorne EXCLUSIVAMENTE um array JSON contendo as opções em texto. Exemplo: ["Opção 1...", "Opção 2...", "Opção 3..."].
+REGRAS OBRIGATÓRIAS DE CONTEÚDO:
+1. Cada opção DEVE ter entre 15 e 35 palavras descrevendo o atendimento prestado, as orientações fornecidas E o encaminhamento/status final (Resolvida ou Pendente).
+2. Opção 1 (Orientado / Resolvido): "Prestado suporte técnico referente ao programa {assunto}. Usuário orientado sobre os procedimentos de acesso via Gov.br e Habilita FNDE. Atendimento finalizado e demanda resolvida com sucesso."
+3. Opção 2 (Dúvidas Sanadas / Resolvido): "Orientações prestadas ao município quanto às regras e operacionalização do {assunto}. Dúvidas normativas sanadas. Demanda resolvida."
+4. Opção 3 (Com Pendência / Aguardando): "Atendimento iniciado quanto às regras do programa {assunto}. Solicitadas informações complementares e documentos ao município. Demanda pendente de retorno do gestor."
+5. Opção 4 (Encaminhamento Técnico): "Orientado quanto à regularização cadastral no sistema {assunto}. Encaminhado material explicativo e canal oficial do FNDE. Demanda finalizada com sucesso."
+6. Retorne EXCLUSIVAMENTE um array JSON contendo as 3 a 4 opções em texto: ["Opção 1...", "Opção 2...", "Opção 3..."].
 
 Retorne apenas o JSON:"""
 
@@ -315,13 +319,13 @@ Retorne apenas o JSON:"""
         except Exception:
             pass
 
-    base = current_value or f"Atendimento realizado quanto às orientações do programa {assunto}."
     return [
-        f"{base} Usuário orientado sobre os procedimentos técnicos e normativos do FNDE.",
-        f"Prestado suporte técnico referente ao {assunto}. Realizados encaminhamentos e orientações operacionais necessárias.",
-        f"Esclarecimento de dúvidas municipais sobre a utilização do {assunto}. Encaminhadas instruções oficiais para regularização.",
-        f"Orientado quanto ao acesso e utilização das ferramentas do {assunto}. Atendimento finalizado com sucesso."
+        f"Prestado suporte técnico referente ao programa {assunto}. Usuário orientado sobre procedimentos normativos do FNDE. Atendimento finalizado e demanda resolvida com sucesso.",
+        f"Orientações prestadas ao município quanto às regras e uso do {assunto}. Dúvidas operacionais sanadas. Demanda resolvida.",
+        f"Solicitadas informações complementares e documentação municipal para regularização no {assunto}. Demanda pendente de retorno do gestor.",
+        f"Orientado quanto ao acesso e utilização das ferramentas do {assunto}. Encaminhadas instruções oficiais e suporte finalizado."
     ]
+
 
 
 

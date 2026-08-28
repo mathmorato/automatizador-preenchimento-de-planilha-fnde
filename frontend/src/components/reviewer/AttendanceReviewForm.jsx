@@ -712,70 +712,12 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
 
 
           {/* Sessão 3: Localização do Município */}
-          <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', gridColumn: '1 / -1' }}>
+          <div className="section-title" style={{ gridColumn: '1 / -1' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <MapPin size={18} /> 3. Localização do Município
             </div>
-
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                className="btn-outline"
-                style={{ 
-                  border: 'none', 
-                  background: '#F0FDF4', 
-                  color: '#047857', 
-                  fontSize: '0.78rem', 
-                  fontWeight: 700,
-                  padding: '4px 10px', 
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onClick={() => setShowPromptLocation(!showPromptLocation)}
-              >
-                <Edit3 size={13} color="#047857" />
-                {showPromptLocation ? 'Fechar' : 'Instruir Refinamento'}
-              </button>
-            </div>
           </div>
 
-          {/* Barra de Comando para Refinamento da Cidade/UF */}
-          {showPromptLocation && (
-            <div style={{ gridColumn: '1 / -1', background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="text"
-                className="form-control"
-                style={{ background: '#FFF', fontSize: '0.85rem' }}
-                placeholder="Digite a cidade ou estado (ex: A cidade é Santo Antônio de Posse em SP...)"
-                value={promptLocationText}
-                onChange={(e) => setPromptLocationText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleRegenerateLocation();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ padding: '8px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap', background: '#047857' }}
-                disabled={loadingLocation}
-                onClick={() => handleRegenerateLocation()}
-              >
-                {loadingLocation ? (
-                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
-                ) : (
-                  <>
-                    <RotateCw size={14} /> Aplicar Refinamento
-                  </>
-                )}
-              </button>
-            </div>
-          )}
 
           <div className="form-group">
             <label>UF (Estado):</label>
