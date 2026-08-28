@@ -698,34 +698,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                 className="btn-outline"
                 style={{ 
                   border: 'none', 
-                  background: '#EBF5FF', 
-                  color: '#0066B3', 
-                  fontSize: '0.78rem', 
-                  fontWeight: 700,
-                  padding: '4px 10px', 
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                disabled={loadingLocation}
-                onClick={() => handleRegenerateLocation('')}
-              >
-                {loadingLocation ? (
-                  <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
-                ) : (
-                  <>
-                    <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Cidade/UF
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                className="btn-outline"
-                style={{ 
-                  border: 'none', 
                   background: '#F0FDF4', 
                   color: '#047857', 
                   fontSize: '0.78rem', 
@@ -798,6 +770,36 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '6px',
+                width: '100%',
+                border: 'none', 
+                background: '#EBF5FF', 
+                color: '#0066B3', 
+                fontSize: '0.76rem', 
+                fontWeight: 700,
+                padding: '6px 8px', 
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px'
+              }}
+              disabled={loadingLocation}
+              onClick={() => handleRegenerateLocation('Buscar especificamente a UF e estado')}
+            >
+              {loadingLocation ? (
+                <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
+              ) : (
+                <>
+                  <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar UF
+                </>
+              )}
+            </button>
           </div>
 
           <div className="form-group">
@@ -821,6 +823,36 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn-outline"
+              style={{ 
+                marginTop: '6px',
+                width: '100%',
+                border: 'none', 
+                background: '#EBF5FF', 
+                color: '#0066B3', 
+                fontSize: '0.76rem', 
+                fontWeight: 700,
+                padding: '6px 8px', 
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px'
+              }}
+              disabled={loadingLocation}
+              onClick={() => handleRegenerateLocation('Buscar especificamente o municipio e cidade')}
+            >
+              {loadingLocation ? (
+                <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
+              ) : (
+                <>
+                  <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Cidade
+                </>
+              )}
+            </button>
           </div>
 
           <div className="form-group">
