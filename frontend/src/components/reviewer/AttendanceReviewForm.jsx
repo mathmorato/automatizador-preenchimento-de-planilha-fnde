@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertTriangle, FileSpreadsheet, Building2, MapPin, User, Phone, Calendar, HelpCircle, FileText, RefreshCw, Hash, Ban, Edit3, Search, Check, Zap, UserCheck, RotateCw } from 'lucide-react';
 import { fetchNextRow, checkRowStatus, regenerateAIField, fetchTrainingParticipants } from '../../services/api';
+import { extractLocationFromText, matchCanonicalMunicipio } from '../../services/clientParser';
 import municipiosData from '../../data/municipios.json';
 
 const ESTADOS_BRASIL = [
@@ -62,6 +63,10 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
   }, [extractedDates]);
 
   // Estados de Regeneração por IA
+  const [showPromptLocation, setShowPromptLocation] = useState(false);
+  const [promptLocationText, setPromptLocationText] = useState('');
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
   const [showPromptResumo, setShowPromptResumo] = useState(false);
   const [promptResumoText, setPromptResumoText] = useState('');
   const [loadingResumo, setLoadingResumo] = useState(false);
@@ -342,9 +347,60 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
         setPromptObsText('');
       }
     } catch (err) {
-      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar observações com IA.');
+      setFormError(err.response?.data?.detail || 'Erro ao reinterpretar observações.');
     } finally {
       setLoadingObs(false);
+    }
+  };
+
+  // Regenerar Localização / Cidade com IA
+  const handleRegenerateLocation = async (customInstruction = '') => {
+    setLoadingLocation(true);
+    setFormError(null);
+    try {
+      const textToSearch = (customInstruction || promptLocationText) 
+        ? `${customInstruction || promptLocationText}\n${rawChatText || formData.observacoes}` 
+        : (rawChatText || formData.observacoes);
+
+      const res = await regenerateAIField({
+        fieldName: 'location',
+        currentValue: `${formData.municipio} - ${formData.uf}`,
+        rawChatText: textToSearch,
+        userInstruction: customInstruction || promptLocationText || 'Identificar município e estado da conversa.',
+        assunto: formData.assunto,
+        idToken
+      });
+
+      if (res.success && res.generated_text) {
+        try {
+          const loc = JSON.parse(res.generated_text);
+          if (loc.municipio && loc.uf) {
+            const cleanM = matchCanonicalMunicipio(loc.municipio, loc.uf);
+            setFormData(prev => ({ ...prev, municipio: cleanM, uf: loc.uf }));
+          }
+        } catch (e) {
+          const { municipio, uf } = extractLocationFromText(textToSearch);
+          const cleanM = matchCanonicalMunicipio(municipio, uf);
+          setFormData(prev => ({ ...prev, municipio: cleanM, uf }));
+        }
+      } else {
+        const { municipio, uf } = extractLocationFromText(textToSearch);
+        const cleanM = matchCanonicalMunicipio(municipio, uf);
+        setFormData(prev => ({ ...prev, municipio: cleanM, uf }));
+      }
+      setShowPromptLocation(false);
+      setPromptLocationText('');
+    } catch (err) {
+      const textToSearch = (customInstruction || promptLocationText) 
+        ? `${customInstruction || promptLocationText}\n${rawChatText || formData.observacoes}` 
+        : (rawChatText || formData.observacoes);
+      const { municipio, uf } = extractLocationFromText(textToSearch);
+      const cleanM = matchCanonicalMunicipio(municipio, uf);
+      setFormData(prev => ({ ...prev, municipio: cleanM, uf }));
+      setShowPromptLocation(false);
+      setPromptLocationText('');
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -631,9 +687,98 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
           </div>
 
           {/* Sessão 3: Localização do Município */}
-          <div className="section-title">
-            <MapPin size={18} /> 3. Localização do Município
+          <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', gridColumn: '1 / -1' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MapPin size={18} /> 3. Localização do Município
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ 
+                  border: 'none', 
+                  background: '#EBF5FF', 
+                  color: '#0066B3', 
+                  fontSize: '0.78rem', 
+                  fontWeight: 700,
+                  padding: '4px 10px', 
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                disabled={loadingLocation}
+                onClick={() => handleRegenerateLocation('')}
+              >
+                {loadingLocation ? (
+                  <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
+                ) : (
+                  <>
+                    <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Cidade/UF
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ 
+                  border: 'none', 
+                  background: '#F0FDF4', 
+                  color: '#047857', 
+                  fontSize: '0.78rem', 
+                  fontWeight: 700,
+                  padding: '4px 10px', 
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                onClick={() => setShowPromptLocation(!showPromptLocation)}
+              >
+                <Edit3 size={13} color="#047857" />
+                {showPromptLocation ? 'Fechar' : 'Instruir Refinamento'}
+              </button>
+            </div>
           </div>
+
+          {/* Barra de Comando para Refinamento da Cidade/UF */}
+          {showPromptLocation && (
+            <div style={{ gridColumn: '1 / -1', background: '#F0FDF4', border: '1px solid #86EFAC', padding: '10px', borderRadius: '8px', marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                className="form-control"
+                style={{ background: '#FFF', fontSize: '0.85rem' }}
+                placeholder="Digite a cidade ou estado (ex: A cidade é Santo Antônio de Posse em SP...)"
+                value={promptLocationText}
+                onChange={(e) => setPromptLocationText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleRegenerateLocation();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ padding: '8px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap', background: '#047857' }}
+                disabled={loadingLocation}
+                onClick={() => handleRegenerateLocation()}
+              >
+                {loadingLocation ? (
+                  <div className="spinner" style={{ width: '14px', height: '14px' }}></div>
+                ) : (
+                  <>
+                    <RotateCw size={14} /> Aplicar Refinamento
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="form-group">
             <label>UF (Estado):</label>

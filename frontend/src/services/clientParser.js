@@ -797,6 +797,13 @@ export function regenerateFieldClientSide({ fieldName, currentValue, rawChatText
   const text = rawChatText || currentValue || "";
   const instruction = (userInstruction || "").toLowerCase();
 
+  if (fieldName === "location" || fieldName === "municipio") {
+    const searchText = (userInstruction ? `${userInstruction}\n${text}` : text);
+    let { municipio, uf } = extractLocationFromText(searchText);
+    municipio = matchCanonicalMunicipio(municipio, uf);
+    return JSON.stringify({ municipio, uf });
+  }
+
   if (fieldName === "atendido_nome") {
     return extractPersonName(text);
   }
