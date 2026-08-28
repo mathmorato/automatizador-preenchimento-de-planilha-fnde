@@ -1,7 +1,6 @@
 import React from 'react';
 import { LogOut, ShieldCheck, Download } from 'lucide-react';
 import logoCecate from '../../assets/logo-cecate.png';
-import { APP_VERSION } from './Footer';
 
 export default function Header({ user, onLogout }) {
   const handleDownloadCSV = () => {
@@ -11,22 +10,8 @@ export default function Header({ user, onLogout }) {
   return (
     <header className="top-nav">
       <div className="nav-container">
-        <a href="/" className="brand-section" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+        <a href="/" className="brand-section">
           <img src={logoCecate} alt="Logo CECATE UFG FNDE" className="brand-logo" />
-          <span 
-            style={{
-              background: '#E0F2FE',
-              color: '#0369A1',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              padding: '2px 8px',
-              borderRadius: '12px',
-              border: '1px solid #BAE6FD',
-              letterSpacing: '0.5px'
-            }}
-          >
-            {APP_VERSION}
-          </span>
         </a>
 
         {user && (
