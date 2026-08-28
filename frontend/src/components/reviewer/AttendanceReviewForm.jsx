@@ -812,7 +812,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
                   <div className="spinner" style={{ width: '12px', height: '12px' }}></div>
                 ) : (
                   <>
-                    <Sparkles size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Nome
+                    <RotateCw size={13} color="#0066B3" /> Reler Conversa &amp; Buscar Nome
                   </>
                 )}
               </button>
@@ -835,7 +835,7 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
             {chatNames && chatNames.length > 0 && (
               <div style={{ marginTop: '8px' }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0066B3', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Sparkles size={13} color="#0066B3" /> Nomes identificados no texto da conversa (clique para escolher ou digite manualmente acima):
+                  <User size={13} color="#0066B3" /> Nomes identificados no texto da conversa (clique para escolher ou digite manualmente acima):
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {chatNames.map((name, idx) => (
