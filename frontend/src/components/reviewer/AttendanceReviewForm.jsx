@@ -453,8 +453,8 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               <option value="Whats App">Whats App</option>
               <option value="Ligação">Ligação</option>
               <option value="E-mail">E-mail</option>
-              <option value="Vídeo Conferência">Vídeo Conferência</option>
               <option value="Presencial">Presencial</option>
+              <option value="Vídeo Conferência">Vídeo Conferência</option>
             </select>
           </div>
 
