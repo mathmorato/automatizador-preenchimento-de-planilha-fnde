@@ -670,11 +670,6 @@ export default function AttendanceReviewForm({ initialData, rawChatText, extract
               required
             >
               <option value="">-- Selecione o Município ({formData.uf}) --</option>
-              {formData.municipio && !(municipiosData[formData.uf] || []).includes(formData.municipio) && (
-                <option value={formData.municipio}>
-                  📍 {formData.municipio} (Extraído da Conversa)
-                </option>
-              )}
               {(municipiosData[formData.uf] || []).map((muni) => (
                 <option key={muni} value={muni}>
                   {muni}

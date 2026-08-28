@@ -644,6 +644,33 @@ export function extractAssuntoFromText(text, trainingInfo) {
   return "SETE";
 }
 
+export function matchCanonicalMunicipio(extractedMuni, targetUf = "GO") {
+  if (!extractedMuni) return (municipiosData[targetUf] || [])[0] || "";
+  
+  const muniNorm = normalizeText(extractedMuni);
+  const citiesInUf = municipiosData[targetUf] || [];
+
+  // 1. Match exato na UF selecionada
+  const exactInUf = citiesInUf.find(c => c.toLowerCase() === extractedMuni.toLowerCase() || normalizeText(c) === muniNorm);
+  if (exactInUf) return exactInUf;
+
+  // 2. Match parcial / contido na UF selecionada
+  const partialInUf = citiesInUf.find(c => {
+    const cNorm = normalizeText(c);
+    return cNorm.includes(muniNorm) || muniNorm.includes(cNorm);
+  });
+  if (partialInUf) return partialInUf;
+
+  // 3. Varredura global em todas as UFs do Brasil caso a UF informada estivesse trocada
+  for (const [sigla, cities] of Object.entries(municipiosData)) {
+    const exactGlobal = cities.find(c => c.toLowerCase() === extractedMuni.toLowerCase() || normalizeText(c) === muniNorm);
+    if (exactGlobal) return exactGlobal;
+  }
+
+  // 4. Fallback seguro: se não encontrar no IBGE, seleciona a primeira cidade válida da UF para evitar opção fora do dropdown
+  return citiesInUf[0] || extractedMuni;
+}
+
 export async function parseChatClientSide({ files, textContent, tecnicoName }) {
   let combinedText = textContent || "";
 
@@ -668,7 +695,8 @@ export async function parseChatClientSide({ files, textContent, tecnicoName }) {
   const dataAtendimento = extractDateFromText(combinedText);
 
   // 2. UF e Município com inteligência e varredura do banco oficial IBGE de 5.570 cidades
-  const { municipio, uf } = extractLocationFromText(combinedText);
+  let { municipio, uf } = extractLocationFromText(combinedText);
+  municipio = matchCanonicalMunicipio(municipio, uf);
 
   // 3. Extração do Nome do Atendido e Telefone Real
   let atendidoNome = extractPersonName(combinedText, tecnicoName);
