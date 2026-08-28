@@ -177,6 +177,13 @@ async def parse_attendance(
                 elif filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
                     image = Image.open(io.BytesIO(content))
                     images.append(image)
+                    try:
+                        import pytesseract
+                        ocr_text = pytesseract.image_to_string(image, lang='por+eng')
+                        if ocr_text and ocr_text.strip():
+                            combined_text += f"\n--- [Texto da Imagem (OCR PT/EN): {file.filename}] ---\n{ocr_text.strip()}\n"
+                    except Exception:
+                        pass
                 elif filename.endswith(".txt"):
                     combined_text += f"\n{content.decode('utf-8', errors='ignore')}"
 
