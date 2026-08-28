@@ -20,7 +20,7 @@ export default function InsertionConfirmationModal({ data, onConfirmOk, onRetry 
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        justifyContent: 'center',
         padding: '0.75rem'
       }}
     >
@@ -35,7 +35,8 @@ export default function InsertionConfirmationModal({ data, onConfirmOk, onRetry 
           flexDirection: 'column',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out'
+          animation: 'fadeIn 0.2s ease-out',
+          margin: 'auto'
         }}
       >
         {/* Cabeçalho do Modal */}
